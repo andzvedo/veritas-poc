@@ -5,18 +5,80 @@ import { useFactCheckStore } from "@/lib/store/factCheckStore";
 import type { FactCheckResult } from "@veritas/shared";
 import type { ComponentProps } from "react";
 
-// Mock data para demonstração
+const ACCESSED_AT = "2025-01-10T12:00:00.000Z";
+
+const demoSource = (id: string, title: string, url: string) => ({
+  id,
+  title,
+  publisher: "example.org",
+  url,
+  type: "SECONDARY" as const,
+  accessedAt: ACCESSED_AT,
+});
+
+const demoEvidence = (
+  id: string,
+  sourceId: string,
+  relation: "SUPPORTS" | "REFUTES" | "CONTEXTUALIZES",
+  excerpt: string,
+) => ({
+  id,
+  sourceId,
+  relation,
+  claimIds: ["claim-demo"],
+  excerpt,
+  explanation: excerpt,
+  verifiedContent: true,
+});
+
+// Mock data para demonstração (contrato migrado LIVE-016: verification.verdict)
 const createMockResults = (): FactCheckResult[] => [
   {
     data: {
       extractedClaim: "A Terra gira em torno do Sol em aproximadamente 365 dias.",
       reasoningConfidence: 0.95,
       reasoning: "Esta é uma afirmação cientificamente comprovada. A Terra completa uma órbita ao redor do Sol em 365,25 dias, o que define um ano solar.",
-      flags: undefined,
       sources: [
         "https://www.nasa.gov/solar-system/earth",
         "https://en.wikipedia.org/wiki/Earth%27s_orbit"
-      ]
+      ],
+      resultVersion: 1,
+      verification: {
+        id: "verification-demo-0",
+        claimId: "claim-demo-0",
+        segmentIds: ["text-chunk-0"],
+        originalQuote: "A Terra gira em torno do Sol em aproximadamente 365 dias.",
+        normalizedClaim: "A Terra gira em torno do Sol em aproximadamente 365 dias.",
+        transcriptConfirmed: true,
+        atomicClaim: {
+          id: "atomic-demo-0",
+          proposition: "A Terra gira em torno do Sol em aproximadamente 365 dias.",
+        },
+        status: "COMPLETED",
+        verdict: "SUPPORTED",
+        conclusion: "Afirmação sustentada pelos documentos inspecionados.",
+        mechanisms: [],
+        supportedAspects: [],
+        limitations: [],
+        evidence: [
+          demoEvidence(
+            "ev-demo-0",
+            "src-demo-0",
+            "SUPPORTS",
+            "A Terra completa uma órbita ao redor do Sol em cerca de 365 dias.",
+          ),
+        ],
+        sources: [
+          demoSource(
+            "src-demo-0",
+            "NASA — Earth",
+            "https://www.nasa.gov/solar-system/earth",
+          ),
+        ],
+        revision: 0,
+        createdAt: ACCESSED_AT,
+        updatedAt: ACCESSED_AT,
+      },
     },
     meta: {
       fingerprint: "demo-fingerprint-1",
@@ -33,7 +95,46 @@ const createMockResults = (): FactCheckResult[] => [
       sources: [
         "https://www.ibge.gov.br/apps/populacao/projecao/",
         "https://pt.wikipedia.org/wiki/Demografia_do_Brasil"
-      ]
+      ],
+      resultVersion: 1,
+      verification: {
+        id: "verification-demo-1",
+        claimId: "claim-demo-1",
+        segmentIds: ["text-chunk-0"],
+        originalQuote: "O Brasil tem mais de 500 milhões de habitantes.",
+        normalizedClaim: "O Brasil tem mais de 500 milhões de habitantes.",
+        transcriptConfirmed: true,
+        atomicClaim: {
+          id: "atomic-demo-1",
+          proposition: "O Brasil tem mais de 500 milhões de habitantes.",
+        },
+        status: "COMPLETED",
+        verdict: "FALSE",
+        conclusion: "A população do Brasil é de cerca de 215 milhões de habitantes.",
+        contradiction: "O IBGE estima cerca de 215 milhões, não 500 milhões.",
+        contradictionEvidenceIds: ["ev-demo-1"],
+        mechanisms: [],
+        supportedAspects: [],
+        limitations: [],
+        evidence: [
+          demoEvidence(
+            "ev-demo-1",
+            "src-demo-1",
+            "REFUTES",
+            "O Brasil tem aproximadamente 215 milhões de habitantes.",
+          ),
+        ],
+        sources: [
+          demoSource(
+            "src-demo-1",
+            "IBGE",
+            "https://www.ibge.gov.br/apps/populacao/projecao/",
+          ),
+        ],
+        revision: 0,
+        createdAt: ACCESSED_AT,
+        updatedAt: ACCESSED_AT,
+      },
     },
     meta: {
       fingerprint: "demo-fingerprint-1",
@@ -50,7 +151,37 @@ const createMockResults = (): FactCheckResult[] => [
       sources: [
         "https://www.mckinsey.com/featured-insights/future-of-work",
         "https://www.weforum.org/reports/the-future-of-jobs-report-2023"
-      ]
+      ],
+      resultVersion: 1,
+      verification: {
+        id: "verification-demo-2",
+        claimId: "claim-demo-2",
+        segmentIds: ["text-chunk-0"],
+        originalQuote: "A inteligência artificial vai substituir todos os empregos nos próximos 5 anos.",
+        normalizedClaim: "A inteligência artificial vai substituir todos os empregos nos próximos 5 anos.",
+        transcriptConfirmed: true,
+        atomicClaim: {
+          id: "atomic-demo-2",
+          proposition: "A inteligência artificial vai substituir todos os empregos nos próximos 5 anos.",
+        },
+        status: "COMPLETED",
+        verdict: "INCONCLUSIVE",
+        conclusion: "As evidências reunidas não permitem confirmar nem refutar a previsão.",
+        mechanisms: [],
+        supportedAspects: [],
+        limitations: ["Não há consenso documental suficiente sobre o prazo de 5 anos."],
+        evidence: [],
+        sources: [
+          demoSource(
+            "src-demo-2",
+            "WEF Future of Jobs",
+            "https://www.weforum.org/reports/the-future-of-jobs-report-2023",
+          ),
+        ],
+        revision: 0,
+        createdAt: ACCESSED_AT,
+        updatedAt: ACCESSED_AT,
+      },
     },
     meta: {
       fingerprint: "demo-fingerprint-1",

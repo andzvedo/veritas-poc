@@ -80,9 +80,11 @@ export class FactCheckService {
       this.socket.on('FACT_CHECK_RESULT', (result: FactCheckResult) => {
         console.log('Resultado recebido:', result);
         
-        // Double check: verifica estrutura do resultado
+        // Double check: verifica estrutura do resultado (legado + verification opcional).
         if (!result.data || !result.data.extractedClaim || typeof result.data.reasoningConfidence !== 'number' || !result.meta) {
           console.warn('⚠️ API pode ter mudado: estrutura do FACT_CHECK_RESULT diferente do esperado');
+        } else if (result.data.verification === undefined && result.data.resultVersion === undefined) {
+          console.warn('ℹ️ FACT_CHECK_RESULT sem verification estruturada (payload legado)');
         }
         
         const currentState = factCheckStore.getState();

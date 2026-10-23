@@ -19,7 +19,15 @@ type ChainVars = ChainInput & {
   context?: string;
 };
 
-const INITIAL_ANALYSIS_SCHEMA = z.array(FACT_CHECK_RESULT_DATA_SCHEMA.omit({ sources: true }));
+/** Legacy LLM shape only — excludes the migrated `verification` payload. */
+const INITIAL_ANALYSIS_SCHEMA = z.array(
+  FACT_CHECK_RESULT_DATA_SCHEMA.pick({
+    extractedClaim: true,
+    reasoningConfidence: true,
+    reasoning: true,
+    flags: true,
+  }),
+);
 
 const SYSTEM_PROMPT = `You are an expert fact-checker and debunking expert analyzing political statements.
 

@@ -65,11 +65,26 @@ createWebSocketServer(
 
     // One in-flight fact check per socket, reset on finish/error.
     let isProcessing = false;
+    let activeAbort: AbortController | undefined;
+
+    const abortActiveFactCheck = (reason: string) => {
+      if (activeAbort === undefined || activeAbort.signal.aborted) {
+        return;
+      }
+      const error = new Error(reason);
+      error.name = 'AbortError';
+      activeAbort.abort(error);
+    };
+
+    socket.on('disconnect', () => {
+      abortActiveFactCheck('client disconnected');
+    });
 
     // Handle fact check requests
     socket.on('REQUEST_FACT_CHECK', async (content, data) => {
       let fingerprint = 'unknown';
       let started = false;
+      const abortController = new AbortController();
 
       // The whole handler is guarded: a malformed payload or a service failure
       // must never reject the listener and take the process down.
@@ -111,6 +126,7 @@ createWebSocketServer(
 
         started = true;
         isProcessing = true;
+        activeAbort = abortController;
 
         emitUpdateStatus(
           socket,
@@ -119,8 +135,13 @@ createWebSocketServer(
           'Started processing fact check request...',
         );
 
-        const factCheckGenerator = factCheckService(text, request);
+        const factCheckGenerator = factCheckService(text, request, {
+          signal: abortController.signal,
+        });
         for await (const result of factCheckGenerator) {
+          if (abortController.signal.aborted) {
+            break;
+          }
           type Res = typeof result;
           const isChunkCount = (v: Res): v is ChunkCount =>
             'chunkCount' in v.data;
@@ -132,6 +153,16 @@ createWebSocketServer(
           }
         }
 
+        if (abortController.signal.aborted) {
+          emitUpdateStatus(
+            socket,
+            fingerprint,
+            'INTERRUPTED',
+            'Fact check cancelled',
+          );
+          return;
+        }
+
         emitUpdateStatus(
           socket,
           fingerprint,
@@ -139,6 +170,18 @@ createWebSocketServer(
           'Fact check completed',
         );
       } catch (error) {
+        if (
+          error instanceof Error &&
+          (error.name === 'AbortError' || abortController.signal.aborted)
+        ) {
+          emitUpdateStatus(
+            socket,
+            fingerprint,
+            'INTERRUPTED',
+            'Fact check cancelled',
+          );
+          return;
+        }
         // Keep raw requests, API keys and headers out of error logs.
         console.error('Error processing fact check', {
           fingerprint,
@@ -149,6 +192,9 @@ createWebSocketServer(
         // Only the invocation that acquired the guard may release it.
         if (started) {
           isProcessing = false;
+          if (activeAbort === abortController) {
+            activeAbort = undefined;
+          }
         }
       }
     });

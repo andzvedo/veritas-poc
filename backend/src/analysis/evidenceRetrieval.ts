@@ -47,6 +47,8 @@ export type RetrieveEvidenceArgs = {
   maxDocuments?: number;
   maxContentChars?: number;
   now?: () => Date;
+  /** Propagated to the research provider (search + extract). */
+  signal?: AbortSignal;
 };
 
 const PRIMARY_DOMAINS = [
@@ -236,8 +238,18 @@ export async function retrieveEvidence(
   const maxDocuments = Math.max(args.maxDocuments ?? DEFAULT_MAX_DOCUMENTS, 0);
   const maxContentChars = args.maxContentChars ?? DEFAULT_MAX_CONTENT_CHARS;
   const accessedAt = (args.now ?? (() => new Date()))().toISOString();
+  const signal = args.signal;
 
-  const hits = await provider.search(buildSearchQuery(claim), { maxResults });
+  if (signal?.aborted) {
+    throw signal.reason instanceof Error
+      ? signal.reason
+      : new Error('Evidence retrieval aborted');
+  }
+
+  const hits = await provider.search(buildSearchQuery(claim), {
+    maxResults,
+    signal,
+  });
   const candidates = dedupeHits(hits).slice(0, maxDocuments);
 
   const outcomes = await mapWithConcurrency(
@@ -245,7 +257,12 @@ export async function retrieveEvidence(
     EXTRACTION_CONCURRENCY,
     async (hit): Promise<ExtractionOutcome> => {
       try {
-        const document = await provider.extract(hit.url);
+        if (signal?.aborted) {
+          throw signal.reason instanceof Error
+            ? signal.reason
+            : new Error('Evidence retrieval aborted');
+        }
+        const document = await provider.extract(hit.url, { signal });
         return { hit, document };
       } catch (error) {
         return { hit, error };

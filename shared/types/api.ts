@@ -25,6 +25,7 @@ import type {
   VerificationInvalidatedEvent,
   VerificationResultEvent,
 } from './live.js';
+import { TEXT_MODE_FACT_CHECK_RESULT_DATA_SCHEMA } from './textMode.js';
 
 // ===== Schemas Zod =====
 const METADATA_SCHEMA = z.object({
@@ -46,6 +47,10 @@ const buildResponseSchema = <Z extends z.ZodType, ZZ extends z.ZodType>(
 export const FACT_CHECK_REQUEST_SCHEMA = METADATA_SCHEMA.pick({
   fingerprint: true,
 }).extend({
+  /**
+   * Legacy field kept for client compatibility. The evidence pipeline ignores
+   * it: research is no longer gated by model self-confidence (LIVE-017).
+   */
   researchThreshold: z.number().gte(0).lte(1).optional(),
   apiKeys: z.object({
     google: z.string(),
@@ -53,15 +58,12 @@ export const FACT_CHECK_REQUEST_SCHEMA = METADATA_SCHEMA.pick({
   }),
 });
 
-export const FACT_CHECK_RESULT_DATA_SCHEMA = z.object({
-  extractedClaim: z.string(),
-  reasoningConfidence: z.number().gte(0).lte(1),
-  reasoning: z.string().min(1, 'Reasoning cannot be empty'),
-  flags: z
-    .array(z.enum(['UNVERIFIABLE', 'MISLEADING', 'INCONCLUSIVE', 'AMBIGUOUS']))
-    .optional(),
-  sources: z.array(z.url()).optional(),
-});
+/**
+ * Text-mode result contract (LIVE-016 migration).
+ * Prefer `verification` when present; legacy fields are derived projections.
+ */
+export const FACT_CHECK_RESULT_DATA_SCHEMA =
+  TEXT_MODE_FACT_CHECK_RESULT_DATA_SCHEMA;
 
 export const FACT_CHECK_RESULT_SCHEMA = buildResponseSchema(
   FACT_CHECK_RESULT_DATA_SCHEMA,

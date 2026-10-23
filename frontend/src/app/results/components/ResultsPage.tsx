@@ -7,12 +7,12 @@ import ProcessedTextPanel from './ProcessedTextPanel';
 import ResultsPanel from './ResultsPanel';
 import type { ResultData } from '@/lib/types/results';
 import { factCheckService } from '@/lib/services/factCheckService';
-import { FactCheckResult } from '@/lib/types/api';
 import Header from '@/app/shared/components/Header';
 import { ConfirmationDialog } from '@/app/shared/components/ConfirmationDialog';
 import { useFactCheckStore } from '@/lib/store/factCheckStore';
 import { useApiKeys } from '@/lib/hooks/useApiKeys';
 import { useI18n, interpolate } from '@/lib/i18n/I18nContext';
+import { factCheckResultToResultData } from '@/lib/verification/textModeResult';
 
 interface ResultsPageProps {
   text?: string;
@@ -53,35 +53,14 @@ const ResultsPage: React.FC<ResultsPageProps> = ({
     router.push('/setup');
   };
 
-  // Converte FactCheckResult do backend para ResultData do componente
-  const convertToResultData = useCallback((result: FactCheckResult): ResultData => {
-    // Determina o status baseado nas flags
-    let status: ResultData['status'] = 'verified';
-    if (result.data.flags?.includes('MISLEADING')) {
-      status = 'unverified';
-    } else if (result.data.flags?.includes('UNVERIFIABLE') || result.data.flags?.includes('INCONCLUSIVE')) {
-      status = 'pending';
-    }
-
-    const converted = {
-      id: `${result.meta.fingerprint}-${result.meta.chunk}-${result.meta.seq}`,
-      text: result.data.extractedClaim,
-      confidence: result.data.reasoningConfidence,
-      status,
-      sources: result.data.sources || [], // Garantir que sempre seja um array
-      explanation: result.data.reasoning
-    };
-
-    console.log('🔄 Convertendo resultado:', {
-      original: result,
-      converted: converted,
-      sources: result.data.sources,
-      hasSources: !!result.data.sources,
-      sourcesLength: result.data.sources?.length || 0
-    });
-
-    return converted;
-  }, []);
+  // Converte FactCheckResult do backend para ResultData do componente.
+  // Preferência: verification.verdict (LIVE-016/017); nunca assume "verified"
+  // só porque a flag MISLEADING está ausente.
+  const convertToResultData = useCallback(
+    (result: Parameters<typeof factCheckResultToResultData>[0]): ResultData =>
+      factCheckResultToResultData(result),
+    [],
+  );
 
   // Converte o estado de verificação para o estado do painel de resultados
   const getResultsPanelStatus = useCallback((): 'loading' | 'partial' | 'complete' | 'error' => {

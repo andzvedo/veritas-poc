@@ -2,18 +2,30 @@ import { FactCheckRequest, ServerToClientEvents } from '#/ws/types.js';
 import { ValidationError } from '#/utils/errors.js';
 import * as Consts from '#/constants.js';
 import { applyChunking } from '#/chunking/index.js';
-import { basicAnalysis, deepResearch } from '#/analysis/index.js';
-import { createConversationMemory } from '#/memory/createConversationMemory.js';
+import { runTextVerificationPipeline } from '#/analysis/textVerificationPipeline.js';
 import { getAdvancedLLM, getLiteLLM } from '#/llm/index.js';
+import { createTavilyProvider } from '#/research/tavily.js';
 
 type EventsPayload = Parameters<
-  ServerToClientEvents[ "FACT_CHECK_RESULT" | "CHUNK_COUNT" ]
->[ 0 ];
+  ServerToClientEvents['FACT_CHECK_RESULT' | 'CHUNK_COUNT']
+>[0];
 
-// Main fact-checking function
+export type FactCheckServiceOptions = {
+  /** Optional abort signal; disconnect/cancel should abort in-flight research. */
+  signal?: AbortSignal;
+};
+
+/**
+ * Manual text-mode fact check (LIVE-017).
+ *
+ * Uses the shared evidence engine: extraction → retrieval → evaluation →
+ * verdict. Does not gate research on `reasoningConfidence` or
+ * `researchThreshold` (the latter remains on the request for compatibility).
+ */
 export async function* factCheckService(
   content: string,
   factCheckReq: FactCheckRequest,
+  options: FactCheckServiceOptions = {},
 ): AsyncGenerator<EventsPayload> {
   if (content.trim().length === 0) {
     throw new ValidationError('Text is required');
@@ -27,33 +39,26 @@ export async function* factCheckService(
 
   const liteLLM = getLiteLLM(factCheckReq.apiKeys.google);
   const advancedLLM = getAdvancedLLM(factCheckReq.apiKeys.google);
+  const researchProvider = createTavilyProvider({
+    apiKey: factCheckReq.apiKeys.tavily,
+  });
   const chunks = await applyChunking(content);
 
   yield {
     meta: { fingerprint: factCheckReq.fingerprint },
     data: { chunkCount: chunks.length },
   };
-  const memory = createConversationMemory(liteLLM);
 
-  const basicAnalysisGenerator = basicAnalysis({
-    factCheckReq,
+  // researchThreshold is intentionally unused: investigation always runs for
+  // fact-checkable claims (LIVE-017). Kept on the wire for older clients.
+  void factCheckReq.researchThreshold;
+
+  yield* runTextVerificationPipeline({
     chunks,
-    memory,
-    llm: liteLLM,
+    fingerprint: factCheckReq.fingerprint,
+    extractionLlm: liteLLM,
+    evaluationLlm: advancedLLM,
+    researchProvider,
+    signal: options.signal,
   });
-  const threshold =
-    factCheckReq.researchThreshold ?? Consts.DEFAULT_NEED_RESEARCH_THRESHOLD;
-  for await (const result of basicAnalysisGenerator) {
-    if (result.data.reasoningConfidence > threshold) {
-      const deepResearchResult = await deepResearch({
-        query: result.data.extractedClaim,
-        memory,
-        llm: advancedLLM,
-        tavilyApiKey: factCheckReq.apiKeys.tavily,
-      });
-      yield { ...result, data: { ...result.data, ...deepResearchResult } };
-    } else {
-      yield result;
-    }
-  }
 }
