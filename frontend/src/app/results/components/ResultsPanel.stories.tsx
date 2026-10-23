@@ -1,38 +1,114 @@
 import type { Story, StoryDefault } from "@ladle/react";
 import { useState } from "react";
+import type { Verification } from "@veritas/shared";
 import ResultsPanel from "./ResultsPanel";
-import type { ResultData } from "@/lib/types/results";
 
 export default {
   title: "Results/ResultsPanel",
 } satisfies StoryDefault;
-const sampleResults: ResultData[] = [
+
+const ACCESSED_AT = "2026-10-19T10:00:00-03:00";
+
+const sampleVerifications: Verification[] = [
   {
     id: "claim-1",
-    text: "A Terra gira em torno do Sol em aproximadamente 365 dias.",
-    confidence: 0.95,
-    status: "verified",
-    sources: ["https://www.nasa.gov/solar-system/earth"],
-    explanation: "Afirmação confirmada por medições astronômicas oficiais."
+    claimId: "claim-1",
+    segmentIds: ["seg-1"],
+    originalQuote: "A Terra gira em torno do Sol em aproximadamente 365 dias.",
+    normalizedClaim: "A Terra gira em torno do Sol em aproximadamente 365 dias.",
+    transcriptConfirmed: true,
+    atomicClaim: {
+      id: "atomic-1",
+      proposition: "A Terra gira em torno do Sol em aproximadamente 365 dias.",
+    },
+    status: "COMPLETED",
+    verdict: "INCONCLUSIVE",
+    conclusion:
+      "Afirmação alinhada a medições astronômicas, mas o payload legado não publica veredito SUPPORTED explícito.",
+    mechanisms: [],
+    supportedAspects: [],
+    limitations: ["Contrato legado sem flag de sustentação explícita."],
+    evidence: [
+      {
+        id: "ev-1",
+        sourceId: "src-1",
+        relation: "CONTEXTUALIZES",
+        claimIds: ["atomic-1"],
+        excerpt: "Órbita terrestre ≈ 365,25 dias.",
+        explanation: "Contexto astronômico de referência.",
+        verifiedContent: false,
+      },
+    ],
+    sources: [
+      {
+        id: "src-1",
+        title: "nasa.gov",
+        publisher: "NASA",
+        url: "https://www.nasa.gov/solar-system/earth",
+        type: "OTHER",
+        accessedAt: ACCESSED_AT,
+      },
+    ],
+    revision: 1,
+    createdAt: ACCESSED_AT,
+    updatedAt: ACCESSED_AT,
   },
   {
     id: "claim-2",
-    text: "O Brasil tem mais de 500 milhões de habitantes.",
-    confidence: 0.83,
-    status: "unverified",
-    sources: [
-      "https://www.ibge.gov.br/apps/populacao/projecao/",
-      "https://pt.wikipedia.org/wiki/Demografia_do_Brasil"
+    claimId: "claim-2",
+    segmentIds: ["seg-2"],
+    originalQuote: "O Brasil tem mais de 500 milhões de habitantes.",
+    normalizedClaim: "O Brasil tem mais de 500 milhões de habitantes.",
+    transcriptConfirmed: true,
+    atomicClaim: {
+      id: "atomic-2",
+      proposition: "O Brasil tem mais de 500 milhões de habitantes.",
+    },
+    status: "COMPLETED",
+    verdict: "MISLEADING",
+    conclusion:
+      "A ordem de grandeza populacional está distorcida frente aos dados oficiais.",
+    mechanisms: [
+      {
+        code: "SELECTIVE_EVIDENCE",
+        explanation: "O número citado não corresponde à série oficial do IBGE.",
+        evidenceIds: ["ev-2"],
+      },
     ],
-    explanation: "Dados do IBGE apontam população próxima de 215 milhões em 2024."
-  }
+    supportedAspects: ["O Brasil é um país populoso da América Latina."],
+    limitations: [],
+    evidence: [
+      {
+        id: "ev-2",
+        sourceId: "src-2",
+        relation: "CONTEXTUALIZES",
+        claimIds: ["atomic-2"],
+        excerpt: "População próxima de 215 milhões em 2024.",
+        explanation: "Dado oficial de referência.",
+        verifiedContent: false,
+      },
+    ],
+    sources: [
+      {
+        id: "src-2",
+        title: "ibge.gov.br",
+        publisher: "IBGE",
+        url: "https://www.ibge.gov.br/apps/populacao/projecao/",
+        type: "PRIMARY",
+        accessedAt: ACCESSED_AT,
+      },
+    ],
+    revision: 1,
+    createdAt: ACCESSED_AT,
+    updatedAt: ACCESSED_AT,
+  },
 ];
 
 export const Loading: Story = () => (
   <div className="w-[664px] rounded-lg">
     <ResultsPanel
       status="loading"
-      results={[]}
+      verifications={[]}
       onCancel={() => console.log("Cancel clicked")}
       onResultClick={() => {}}
     />
@@ -43,22 +119,24 @@ export const Partial: Story = () => (
   <div className="w-[664px] rounded-lg">
     <ResultsPanel
       status="partial"
-      results={sampleResults.slice(0, 1)}
+      verifications={sampleVerifications.slice(0, 1)}
       onCancel={() => console.log("Cancel clicked")}
       onResultClick={(resultId) => console.log("Selecionado:", resultId)}
-      selectedResultId={sampleResults[0].id}
+      selectedResultId={sampleVerifications[0].id}
     />
   </div>
 );
 
 export const Complete: Story = () => {
-  const [selectedResultId, setSelectedResultId] = useState<string>(sampleResults[0].id);
+  const [selectedResultId, setSelectedResultId] = useState<string>(
+    sampleVerifications[0].id,
+  );
 
   return (
     <div className="w-[664px] rounded-lg">
       <ResultsPanel
         status="complete"
-        results={sampleResults}
+        verifications={sampleVerifications}
         onCopyPlainText={() => console.log("Copy Plain Text clicked")}
         onResultClick={(resultId) => {
           setSelectedResultId(resultId);
@@ -71,30 +149,32 @@ export const Complete: Story = () => {
 };
 
 export const Scrollable: Story = () => {
-  // Criar muitos resultados para demonstrar rolagem
-  const manyResults = Array.from({ length: 10 }, (_, i) => ({
+  const manyVerifications = Array.from({ length: 8 }, (_, i) => ({
+    ...sampleVerifications[0],
     id: `result-${i + 1}`,
-    text: `Este é o resultado número ${i + 1} para demonstrar o comportamento de rolagem quando há muitos resultados.`,
-    confidence: 0.85 + (i * 0.01),
-    status: 'verified' as const,
-    sources: [`https://example.com/source${i + 1}`],
-    explanation: `Esta é a explicação detalhada para o resultado ${i + 1}, incluindo análise e verificação das fontes.`
+    claimId: `result-${i + 1}`,
+    originalQuote: `Afirmação de exemplo número ${i + 1} para demonstrar rolagem.`,
+    normalizedClaim: `Afirmação de exemplo número ${i + 1} para demonstrar rolagem.`,
+    conclusion: `Conclusão detalhada do resultado ${i + 1}.`,
+    revision: i + 1,
   }));
-  const [selectedResultId, setSelectedResultId] = useState<string>(manyResults[0].id);
+  const [selectedResultId, setSelectedResultId] = useState<string>(
+    manyVerifications[0].id,
+  );
 
   return (
-    <div className="space-y-6 w-[664px]">
+    <div className="w-[664px] space-y-6">
       <div className="space-y-2">
         <h3 className="text-lg font-semibold">Comportamento de Rolagem</h3>
         <p className="text-sm text-muted-foreground">
-          Demonstração do comportamento quando há muitos resultados e o painel precisa de rolagem
+          Demonstração do painel com VerificationCard e rolagem
         </p>
       </div>
 
       <div className="h-screen rounded-lg">
         <ResultsPanel
           status="complete"
-          results={manyResults}
+          verifications={manyVerifications}
           onCopyPlainText={() => console.log("Copy Plain Text clicked")}
           onResultClick={(resultId) => {
             setSelectedResultId(resultId);
@@ -103,149 +183,94 @@ export const Scrollable: Story = () => {
           selectedResultId={selectedResultId}
         />
       </div>
-
-      <div className="text-xs text-muted-foreground">
-        <p><strong>Estado:</strong> Complete (10 resultados)</p>
-        <p><strong>Comportamento:</strong> Rolagem automática quando necessário</p>
-        <p><strong>Altura máxima:</strong> Limitada à viewport disponível</p>
-      </div>
     </div>
   );
 };
 
 export const Error: Story = () => (
-  <div className="space-y-6 w-[664px]">
-    <div className="space-y-2">
-      <h3 className="text-lg font-semibold">Variante de Erro</h3>
-      <p className="text-sm text-muted-foreground">
-        Painel com estado de erro - borda vermelha, ícone AlertTriangle e botão &ldquo;Try again&rdquo;
-      </p>
-    </div>
-
+  <div className="w-[664px] space-y-6">
     <div className="rounded-lg">
       <ResultsPanel
         status="error"
-        results={[]}
+        verifications={[]}
         onRetry={() => console.log("Retry clicked")}
         onResultClick={() => {}}
       />
-    </div>
-
-    <div className="text-xs text-muted-foreground">
-      <p><strong>Estado:</strong> Error</p>
-      <p><strong>Borda:</strong> Vermelha (#cb1f1f)</p>
-      <p><strong>Design:</strong> Baseado no Figma node 332-7483</p>
     </div>
   </div>
 );
 
 export const Empty: Story = () => (
-  <div className="space-y-6 w-[664px]">
-    <div className="space-y-2">
-      <h3 className="text-lg font-semibold">Nenhum Resultado Encontrado</h3>
-      <p className="text-sm text-muted-foreground">
-        Estado quando a verificação termina mas nenhum resultado é encontrado
-      </p>
-    </div>
-
+  <div className="w-[664px] space-y-6">
     <div className="rounded-lg">
       <ResultsPanel
         status="complete"
-        results={[]}
+        verifications={[]}
         onCopyPlainText={() => console.log("Copy Plain Text clicked")}
         onResultClick={() => {}}
       />
-    </div>
-
-    <div className="text-xs text-muted-foreground">
-      <p><strong>Estado:</strong> Complete (sem resultados)</p>
-      <p><strong>Design:</strong> Card roxo claro com ícone CheckCircle</p>
-      <p><strong>Figma:</strong> Baseado no node 417-15635</p>
     </div>
   </div>
 );
 
 export const Interactive: Story = () => {
-  const [status, setStatus] = useState<'loading' | 'partial' | 'complete' | 'error'>('loading');
-  const [results, setResults] = useState<ResultData[]>([]);
+  const [status, setStatus] = useState<"loading" | "partial" | "complete" | "error">(
+    "loading",
+  );
+  const [verifications, setVerifications] = useState<Verification[]>([]);
   const [lastAction, setLastAction] = useState<string>("");
-  const [selectedResultId, setSelectedResultId] = useState<string | undefined>(undefined);
+  const [selectedResultId, setSelectedResultId] = useState<string | undefined>(
+    undefined,
+  );
 
   const simulateLoading = () => {
-    setStatus('loading');
-    setResults([]);
+    setStatus("loading");
+    setVerifications([]);
     setLastAction("Iniciando carregamento...");
 
     setTimeout(() => {
-      setStatus('partial');
-      setResults([sampleResults[0]]);
+      setStatus("partial");
+      setVerifications([sampleVerifications[0]]);
       setLastAction("Carregamento parcial...");
-      setSelectedResultId(sampleResults[0].id);
+      setSelectedResultId(sampleVerifications[0].id);
     }, 2000);
 
     setTimeout(() => {
-      setStatus('complete');
-      setResults(sampleResults);
+      setStatus("complete");
+      setVerifications(sampleVerifications);
       setLastAction("Carregamento completo!");
-      setSelectedResultId(sampleResults[0].id);
+      setSelectedResultId(sampleVerifications[0].id);
     }, 4000);
   };
 
-  const simulateError = () => {
-    setStatus('error');
-    setResults([]);
-    setLastAction("Erro simulado");
-    setSelectedResultId(undefined);
-  };
-
-  const reset = () => {
-    setStatus('loading');
-    setResults([]);
-    setLastAction("Reset executado");
-    setSelectedResultId(undefined);
-  };
-
-  const handleCancel = () => {
-    setLastAction("Cancel clicked");
-    console.log("Cancel action triggered");
-  };
-
-  const handleRetry = () => {
-    setLastAction("Retry clicked");
-    setStatus('loading');
-    console.log("Retry action triggered");
-  };
-
-  const handleCopy = () => {
-    setLastAction("Copy Plain Text clicked");
-    console.log("Copy action triggered");
-  };
-
   return (
-    <div className="space-y-6 w-[664px]">
-      <div className="space-y-2">
-        <h3 className="text-lg font-semibold">ResultsPanel Interativo</h3>
-        <p className="text-sm text-muted-foreground">
-          Simule diferentes estados do painel de resultados. Agora usa o ResultsHeader integrado.
-        </p>
-      </div>
-
-      <div className="flex gap-2 flex-wrap">
+    <div className="w-[664px] space-y-6">
+      <div className="flex flex-wrap gap-2">
         <button
           onClick={simulateLoading}
-          className="px-3 py-1 bg-blue-100 text-blue-800 rounded text-sm hover:bg-blue-200"
+          className="rounded bg-blue-100 px-3 py-1 text-sm text-blue-800 hover:bg-blue-200"
         >
           Simular Carregamento
         </button>
         <button
-          onClick={simulateError}
-          className="px-3 py-1 bg-red-100 text-red-800 rounded text-sm hover:bg-red-200"
+          onClick={() => {
+            setStatus("error");
+            setVerifications([]);
+            setLastAction("Erro simulado");
+            setSelectedResultId(undefined);
+          }}
+          className="rounded bg-red-100 px-3 py-1 text-sm text-red-800 hover:bg-red-200"
         >
           Simular Erro
         </button>
         <button
-          onClick={reset}
-          className="px-3 py-1 bg-gray-100 text-gray-800 rounded text-sm hover:bg-gray-200"
+          onClick={() => {
+            setStatus("loading");
+            setVerifications([]);
+            setLastAction("Reset executado");
+            setSelectedResultId(undefined);
+          }}
+          className="rounded bg-gray-100 px-3 py-1 text-sm text-gray-800 hover:bg-gray-200"
         >
           Reset
         </button>
@@ -254,22 +279,30 @@ export const Interactive: Story = () => {
       <div className="rounded-lg">
         <ResultsPanel
           status={status}
-          results={results}
-          onCancel={handleCancel}
-          onRetry={handleRetry}
-          onCopyPlainText={handleCopy}
+          verifications={verifications}
+          onCancel={() => setLastAction("Cancel clicked")}
+          onRetry={() => {
+            setLastAction("Retry clicked");
+            setStatus("loading");
+          }}
+          onCopyPlainText={() => setLastAction("Copy Plain Text clicked")}
           onResultClick={(resultId) => {
             setSelectedResultId(resultId);
-            console.log("Selecionado:", resultId);
           }}
           selectedResultId={selectedResultId}
         />
       </div>
 
       <div className="text-xs text-muted-foreground">
-        <p><strong>Status atual:</strong> {status}</p>
-        <p><strong>Resultados:</strong> {results.length}</p>
-        <p><strong>Última ação:</strong> {lastAction || "Nenhuma"}</p>
+        <p>
+          <strong>Status atual:</strong> {status}
+        </p>
+        <p>
+          <strong>Verificações:</strong> {verifications.length}
+        </p>
+        <p>
+          <strong>Última ação:</strong> {lastAction || "Nenhuma"}
+        </p>
       </div>
     </div>
   );

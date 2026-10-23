@@ -212,6 +212,10 @@ const ResultsPageWithMockData: React.FC<ResultsPageStoryProps> = ({
       status: 'finished',
       processedText: text,
       results: resolvedResults,
+      verifications: [],
+      sessionId: null,
+      eventCursor: 0,
+      seenEventIds: [],
       fingerprint: 'demo-fingerprint-1',
     });
 

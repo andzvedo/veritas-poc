@@ -9,9 +9,9 @@
  * - `tvly-...`, `tvly-dev-...`, `tvly-prod-...`
  */
 
-const GEMINI_STANDARD_KEY = /^AIza[0-9A-Za-z\-_]{35}$/;
-const GEMINI_AUTH_KEY = /^AQ\.[A-Za-z0-9_\-]{20,}$/;
-const TAVILY_KEY = /^tvly-(?:(?:dev|prod)-)?[A-Za-z0-9_\-]{16,}$/;
+const GEMINI_STANDARD_KEY = /^AIza[0-9A-Za-z_-]{35}$/;
+const GEMINI_AUTH_KEY = /^AQ\.[A-Za-z0-9_-]{20,}$/;
+const TAVILY_KEY = /^tvly-(?:(?:dev|prod)-)?[A-Za-z0-9_-]{16,}$/;
 
 export function isValidGeminiApiKey(key: string): boolean {
   const trimmed = key.trim();

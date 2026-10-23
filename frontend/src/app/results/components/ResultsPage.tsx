@@ -1,7 +1,8 @@
-    "use client";
+"use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import type { Verification } from '@veritas/shared';
 import { cn } from '@/lib/utils';
 import ProcessedTextPanel from './ProcessedTextPanel';
 import ResultsPanel from './ResultsPanel';
@@ -10,22 +11,38 @@ import { factCheckService } from '@/lib/services/factCheckService';
 import Header from '@/app/shared/components/Header';
 import { ConfirmationDialog } from '@/app/shared/components/ConfirmationDialog';
 import { useFactCheckStore } from '@/lib/store/factCheckStore';
+import { selectDisplayVerifications } from '@/lib/store/verificationSync';
 import { useApiKeys } from '@/lib/hooks/useApiKeys';
 import { useI18n, interpolate } from '@/lib/i18n/I18nContext';
-import { factCheckResultToResultData } from '@/lib/verification/textModeResult';
+import { getDisplayVerdict } from '@/lib/verification/presentation';
+import { verdictToOutcome } from '@/lib/verification/textModeResult';
 
 interface ResultsPageProps {
   text?: string;
   onNewVerification?: () => void;
   className?: string;
-  demoMode?: boolean; // Modo demo para Storybook - não tenta conectar ao backend
+  demoMode?: boolean;
 }
+
+const verificationToResultData = (verification: Verification): ResultData => {
+  const verdict = getDisplayVerdict(verification);
+
+  return {
+    id: verification.id,
+    text: verification.normalizedClaim || verification.originalQuote,
+    // Confidence percentages are not shown (LIVE-027: nenhum percentual de verdade).
+    confidence: 0,
+    status: verdict !== null ? verdictToOutcome(verdict) : 'pending',
+    sources: verification.sources.map((source) => source.url),
+    explanation: verification.conclusion,
+  };
+};
 
 const ResultsPage: React.FC<ResultsPageProps> = ({
   text,
   onNewVerification,
   className,
-  demoMode = false
+  demoMode = false,
 }) => {
   const { t, locale } = useI18n();
   const router = useRouter();
@@ -36,12 +53,20 @@ const ResultsPage: React.FC<ResultsPageProps> = ({
   const [showNewTextModal, setShowNewTextModal] = useState(false);
   const [showCancelVerificationModal, setShowCancelVerificationModal] = useState(false);
   const [selectedClaimId, setSelectedClaimId] = useState<string | undefined>();
+
   const isVerificationInProgress =
     verificationState.status === 'processing' || verificationState.status === 'connecting';
   const hasCompletedVerification = verificationState.status === 'finished';
-  const hasVerificationResults = verificationState.results.length > 0;
+  const displayVerifications = selectDisplayVerifications(
+    verificationState.verifications,
+    verificationState.results,
+    verificationState.sessionId,
+  );
+  const hasVerificationResults = displayVerifications.length > 0;
   const shouldConfirmSettingsNavigation =
     isVerificationInProgress || hasCompletedVerification || hasVerificationResults;
+
+  const highlightResults = displayVerifications.map(verificationToResultData);
 
   const handleConfigurationsClick = () => {
     if (shouldConfirmSettingsNavigation) {
@@ -53,21 +78,9 @@ const ResultsPage: React.FC<ResultsPageProps> = ({
     router.push('/setup');
   };
 
-  // Converte FactCheckResult do backend para ResultData do componente.
-  // Preferência: verification.verdict (LIVE-016/017); nunca assume "verified"
-  // só porque a flag MISLEADING está ausente.
-  const convertToResultData = useCallback(
-    (result: Parameters<typeof factCheckResultToResultData>[0]): ResultData =>
-      factCheckResultToResultData(result),
-    [],
-  );
-
-  // Converte o estado de verificação para o estado do painel de resultados
   const getResultsPanelStatus = useCallback((): 'loading' | 'partial' | 'complete' | 'error' => {
-    const hasResults = verificationState.results.length > 0;
+    const hasResults = displayVerifications.length > 0;
 
-    // Se já existem resultados, mostramos o estado "partial" enquanto o backend
-    // ainda está processando, e "complete" quando finalizar.
     if (hasResults) {
       if (verificationState.status === 'error' || verificationState.status === 'interrupted') {
         return 'error';
@@ -75,43 +88,30 @@ const ResultsPage: React.FC<ResultsPageProps> = ({
       return verificationState.status === 'finished' ? 'complete' : 'partial';
     }
 
-    // Sem resultados ainda: loading, a menos que haja erro/interrupção
     if (verificationState.status === 'error' || verificationState.status === 'interrupted') {
       return 'error';
     }
 
-    // Se está finalizado mas sem resultados, retorna complete (o header vai mostrar o estado correto)
     if (verificationState.status === 'finished') {
       return 'complete';
     }
 
     return 'loading';
-  }, [verificationState.status, verificationState.results.length]);
+  }, [verificationState.status, displayVerifications.length]);
 
-  // Converte os resultados do backend para o formato do componente
-  const convertedResults = verificationState.results.map(convertToResultData);
-
-  console.log('📊 Resultados convertidos:', {
-    count: convertedResults.length,
-    results: convertedResults
-  });
-
-  // Função para gerar o texto completo formatado com todos os resultados
   const generateFormattedText = useCallback(() => {
     const originalText = verificationState.processedText || text || '';
-    const results = convertedResults;
+    const results = highlightResults;
 
     if (!originalText) return '';
 
     let formattedText = '';
 
-    // Adiciona o texto original
     formattedText += `${t.results.export.verifiedText}:\n`;
     formattedText += '==================\n\n';
     formattedText += originalText;
     formattedText += '\n\n';
 
-    // Se não há resultados, adiciona informação
     if (results.length === 0) {
       formattedText += `${t.results.export.verificationResults}:\n`;
       formattedText += '=========================\n\n';
@@ -119,7 +119,6 @@ const ResultsPage: React.FC<ResultsPageProps> = ({
       return formattedText;
     }
 
-    // Adiciona os resultados da verificação
     formattedText += `${t.results.export.verificationResults}:\n`;
     formattedText += '=========================\n\n';
 
@@ -127,32 +126,11 @@ const ResultsPage: React.FC<ResultsPageProps> = ({
       formattedText += `${index + 1}. ${t.results.export.verifiedClaim}:\n`;
       formattedText += `${result.text}\n\n`;
 
-      // Status da verificação
-      // let statusText = '';
-      // switch (result.status) {
-      //   case 'verified':
-      //     statusText = '✅ VERIFICADO';
-      //     break;
-      //   case 'unverified':
-      //     statusText = '❌ NÃO VERIFICADO';
-      //     break;
-      //   case 'pending':
-      //     statusText = '⏳ PENDENTE';
-      //     break;
-      //   default:
-      //     statusText = '❓ INDETERMINADO';
-      // }
-
-      // formattedText += `Status: ${statusText}\n`;
-      // formattedText += `Confiança: ${Math.round(result.confidence * 100)}%\n\n`;
-
-      // Análise/explicação
       if (result.explanation) {
         formattedText += `${t.results.export.analysis}:\n`;
         formattedText += `${result.explanation}\n\n`;
       }
 
-      // Fontes
       if (result.sources && result.sources.length > 0) {
         formattedText += `${t.results.export.sources}:\n`;
         result.sources.forEach((source: string, sourceIndex: number) => {
@@ -161,20 +139,18 @@ const ResultsPage: React.FC<ResultsPageProps> = ({
         formattedText += '\n';
       }
 
-      // Separador entre resultados
       if (index < results.length - 1) {
         formattedText += '---\n\n';
       }
     });
 
-    // Adiciona informações finais
     formattedText += '\n';
     formattedText += `${t.results.export.generatedBy}\n`;
     formattedText += `${t.results.export.date}: ${new Date().toLocaleDateString(locale === 'pt-BR' ? 'pt-BR' : 'en-US')}\n`;
     formattedText += interpolate(t.results.export.totalClaims, { count: results.length }) + '\n';
 
     return formattedText;
-  }, [verificationState.processedText, text, convertedResults, t, locale]);
+  }, [verificationState.processedText, text, highlightResults, t, locale]);
 
   const handleCopyPlainText = useCallback(async () => {
     try {
@@ -184,7 +160,6 @@ const ResultsPage: React.FC<ResultsPageProps> = ({
       if (navigator?.clipboard?.writeText) {
         await navigator.clipboard.writeText(textToCopy);
       } else {
-        // Fallback para navegadores antigos
         const ta = document.createElement('textarea');
         ta.value = textToCopy;
         ta.style.position = 'fixed';
@@ -199,11 +174,9 @@ const ResultsPage: React.FC<ResultsPageProps> = ({
     }
   }, [generateFormattedText]);
 
-  // Inicializa a conexão com o backend
   useEffect(() => {
     if (isInitialized) return;
 
-    // Modo demo: pula a conexão com backend
     if (demoMode) {
       console.log('🎭 Modo demo ativado - pulando conexão com backend');
       setIsInitialized(true);
@@ -214,7 +187,6 @@ const ResultsPage: React.FC<ResultsPageProps> = ({
       try {
         console.log('🔌 Inicializando conexão com o backend...');
 
-        // Testa a conexão
         const isConnected = await factCheckService.testConnection();
         if (!isConnected) {
           console.error('❌ Falha ao conectar com o backend');
@@ -223,7 +195,6 @@ const ResultsPage: React.FC<ResultsPageProps> = ({
 
         console.log('✅ Conexão com o backend estabelecida');
         setIsInitialized(true);
-
       } catch (error) {
         console.error('❌ Erro ao inicializar conexão:', error);
       }
@@ -232,13 +203,10 @@ const ResultsPage: React.FC<ResultsPageProps> = ({
     void initializeConnection();
   }, [isInitialized, demoMode, text]);
 
-  // O estado já é sincronizado automaticamente via Zustand
-
-  // Inicia a verificação automaticamente quando a página carrega
+  // Auto-start text verification only when there is no existing progressive work.
   useEffect(() => {
     if (!isInitialized) return;
 
-    // Modo demo: não inicia verificação
     if (demoMode) {
       console.log('🎭 Modo demo - usando dados mock da store');
       return;
@@ -246,14 +214,24 @@ const ResultsPage: React.FC<ResultsPageProps> = ({
 
     const startVerification = async () => {
       try {
-        // Se já há resultados ou verificação em andamento, não inicia nova verificação
         const currentState = factCheckService.getState();
-        if (currentState.results.length > 0 || currentState.status === 'processing' || currentState.status === 'connecting') {
-          console.log('📊 Usando estado existente:', currentState.status, 'com', currentState.results.length, 'resultados');
+        if (
+          currentState.results.length > 0 ||
+          currentState.verifications.length > 0 ||
+          currentState.status === 'processing' ||
+          currentState.status === 'connecting' ||
+          currentState.status === 'finished'
+        ) {
+          console.log(
+            '📊 Usando estado existente:',
+            currentState.status,
+            'com',
+            currentState.verifications.length || currentState.results.length,
+            'resultados',
+          );
           return;
         }
 
-        // Verifica se há texto processado disponível
         const serviceText = factCheckService.getProcessedText();
         if (!serviceText || serviceText.trim() === '') {
           console.log('⚠️ Nenhum texto processado disponível, aguardando...');
@@ -263,7 +241,6 @@ const ResultsPage: React.FC<ResultsPageProps> = ({
         console.log('🚀 Iniciando verificação de fatos...');
         console.log('📝 Texto:', serviceText);
 
-        // Garante envio das API keys ao backend
         if (!apiKeys?.google || !apiKeys?.tavily) {
           console.warn('⚠️ API keys ausentes; abortando verificação automática na ResultsPage');
           return;
@@ -283,12 +260,10 @@ const ResultsPage: React.FC<ResultsPageProps> = ({
       }
     };
 
-    // Inicia a verificação imediatamente
-    startVerification();
+    void startVerification();
   }, [isInitialized, text, apiKeys, demoMode]);
 
   const handleNewVerification = () => {
-    // Sempre mostrar modal de confirmação
     setShowNewTextModal(true);
   };
 
@@ -298,28 +273,24 @@ const ResultsPage: React.FC<ResultsPageProps> = ({
     if (onNewVerification) {
       onNewVerification();
     } else {
-      // Fallback: redirecionar para home
       window.location.href = '/';
     }
   };
 
   const handleCancelNewText = () => {
-    // Apenas fecha o modal, não faz nada mais
     console.log('🚫 Modal cancelado - fechando modal');
     setShowNewTextModal(false);
   };
 
-  // Handlers para sincronização bidirecional
   const handleClaimClick = useCallback((claimId: string) => {
     console.log('🎯 CLAIM clicado:', claimId);
     setSelectedClaimId(claimId);
 
-    // Scroll para o resultado correspondente
     const resultElement = document.getElementById(`result-${claimId}`);
     if (resultElement) {
       resultElement.scrollIntoView({
         behavior: 'smooth',
-        block: 'center'
+        block: 'center',
       });
     }
   }, []);
@@ -328,44 +299,40 @@ const ResultsPage: React.FC<ResultsPageProps> = ({
     console.log('📊 Resultado clicado:', resultId);
     setSelectedClaimId(resultId);
 
-    // Scroll para o CLAIM correspondente no texto
     const claimElement = document.getElementById(`claim-${resultId}`);
     if (claimElement) {
       claimElement.scrollIntoView({
         behavior: 'smooth',
-        block: 'center'
+        block: 'center',
       });
     }
   }, []);
 
   return (
-    <div className={cn('min-h-screen', className)} style={{ backgroundColor: 'var(--veritas-results-background)' }}>
-      {/* Header (mesmo layout do /verification) */}
-      <div className="max-w-[1440px] mx-auto px-20">
-        <Header
-          showSettings={true}
-          onSettingsClick={handleConfigurationsClick}
-        />
+    <div
+      className={cn('min-h-screen', className)}
+      style={{ backgroundColor: 'var(--veritas-results-background)' }}
+    >
+      <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-20">
+        <Header showSettings={true} onSettingsClick={handleConfigurationsClick} />
       </div>
 
-      <div className="max-w-[1440px] mx-auto px-[80px] sm:px-4 lg:px-26 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 h-[calc(100vh-7rem)] gap-20">
-          {/* Coluna Esquerda - Texto Processado */}
+      <div className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 lg:px-20">
+        <div className="grid h-auto grid-cols-1 gap-8 lg:h-[calc(100vh-7rem)] lg:grid-cols-2 lg:gap-20">
           <div className="rounded-lg">
             <ProcessedTextPanel
               text={verificationState.processedText || text || ''}
-              results={convertedResults}
+              results={highlightResults}
               onNewVerification={handleNewVerification}
               onClaimClick={handleClaimClick}
               selectedClaimId={selectedClaimId}
             />
           </div>
 
-          {/* Coluna Direita - Resultados */}
-          <div>
+          <div className="min-w-0">
             <ResultsPanel
               status={getResultsPanelStatus()}
-              results={convertedResults}
+              verifications={displayVerifications}
               onCopyPlainText={handleCopyPlainText}
               onCancel={() => setShowCancelVerificationModal(true)}
               onResultClick={handleResultClick}
@@ -375,14 +342,13 @@ const ResultsPage: React.FC<ResultsPageProps> = ({
         </div>
       </div>
 
-      {/* Modal de Confirmação para ir às Configurações */}
       <ConfirmationDialog
         isOpen={showSettingsConfirmModal}
         onClose={() => setShowSettingsConfirmModal(false)}
         onCancel={() => setShowSettingsConfirmModal(false)}
         variant="cancel-verification"
-        description="Tem certeza de que deseja ir para configurações? Se continuar, tudo o que foi feito até agora será perdido."
-        confirmText="Ir para Configurações"
+        description={t.confirmationDialog.goToSettings.description}
+        confirmText={t.confirmationDialog.goToSettings.confirm}
         onConfirm={() => {
           factCheckService.reset();
           setShowSettingsConfirmModal(false);
@@ -390,7 +356,6 @@ const ResultsPage: React.FC<ResultsPageProps> = ({
         }}
       />
 
-      {/* Modal de Confirmação para Novo Texto */}
       <ConfirmationDialog
         isOpen={showNewTextModal}
         onClose={() => setShowNewTextModal(false)}
@@ -399,14 +364,12 @@ const ResultsPage: React.FC<ResultsPageProps> = ({
         onConfirm={handleConfirmNewText}
       />
 
-      {/* Modal de Confirmação para Cancelar Verificação */}
       <ConfirmationDialog
         isOpen={showCancelVerificationModal}
         onClose={() => setShowCancelVerificationModal(false)}
         onCancel={() => setShowCancelVerificationModal(false)}
         variant="cancel-verification"
         onConfirm={() => {
-          // Limpa estado local e serviço, e volta para a home
           factCheckService.reset();
           setShowCancelVerificationModal(false);
           if (typeof window !== 'undefined') {

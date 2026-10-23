@@ -22,6 +22,7 @@ import type {
   TranscriptPartialEvent,
   TranscriptRevisedEvent,
   UpdateSpeakerMapping,
+  Verification,
   VerificationInvalidatedEvent,
   VerificationResultEvent,
 } from './live.js';
@@ -144,7 +145,19 @@ export type VerificationStatus =
 export interface VerificationState {
   status: VerificationStatus;
   message?: string;
+  /** Legacy text-mode progressive results (FACT_CHECK_RESULT). */
   results: FactCheckResult[];
+  /**
+   * Live / progressive verifications keyed by id+revision (LIVE-028).
+   * Prefer this list for ResultsPage cards; text mode may bridge into it.
+   */
+  verifications: Verification[];
+  /** Active live session; cross-session events must be ignored. */
+  sessionId: string | null;
+  /** Last applied server eventSeq / snapshot cursor for same-instance recovery. */
+  eventCursor: number;
+  /** Envelope eventIds already applied (dedupe on reconnect). */
+  seenEventIds: string[];
   chunkCount?: number;
   error?: string;
   processedText: string;
