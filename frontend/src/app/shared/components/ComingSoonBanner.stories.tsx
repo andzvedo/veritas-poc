@@ -2,7 +2,7 @@ import type { Story, StoryDefault } from "@ladle/react";
 import ComingSoonBanner from "./ComingSoonBanner";
 
 export default {
-  title: "Shared/ComingSoonBanner",
+  title: "app/shared/components/ComingSoonBanner",
 } satisfies StoryDefault;
 
 export const Default: Story = () => (

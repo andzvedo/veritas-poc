@@ -76,12 +76,20 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
         ? t.results.navigation.lastClaim
         : undefined;
 
+  const selectResult = (id: string) => {
+    onResultClick?.(id);
+    document.getElementById(`result-${id}`)?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  };
+
   const handlePrev = () => {
-    if (canGoPrev) onResultClick?.(verifications[selectedIndex - 1].id);
+    if (canGoPrev) selectResult(verifications[selectedIndex - 1].id);
   };
 
   const handleNext = () => {
-    if (canGoNext) onResultClick?.(verifications[selectedIndex + 1].id);
+    if (canGoNext) selectResult(verifications[selectedIndex + 1].id);
   };
 
   const claimsCountLabel =
@@ -159,7 +167,7 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
             key={verification.id}
             id={`result-${verification.id}`}
             className={cn(
-              'w-full transition-shadow',
+              'w-full scroll-mt-4 rounded-[14px] transition-shadow hover:shadow-[var(--shadow-card-hover)]',
               selectedResultId === verification.id &&
                 'rounded-[14px] ring-2 ring-[var(--purple-button)] ring-offset-2',
             )}
@@ -201,7 +209,7 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
         className,
       )}
     >
-      <div className="relative box-border flex w-full shrink-0 flex-col items-start gap-4 pt-4">
+      <div className="relative box-border flex w-full shrink-0 flex-col items-start gap-3 pt-3 sm:gap-4 sm:pt-4">
         <div className="relative flex w-full shrink-0 items-start">
           <ResultsHeader
             status={getVerificationStatus()}
@@ -217,7 +225,7 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
 
       <div
         className={cn(
-          'relative box-border flex w-full shrink-0 flex-col items-center gap-4 px-2 py-4',
+          'relative box-border flex w-full shrink-0 flex-col items-center gap-3 px-1 py-3 sm:gap-4 sm:px-2 sm:py-4',
           'flex-1 overflow-y-auto',
           (status === 'error' || (status === 'complete' && verifications.length === 0)) &&
             'justify-center',
@@ -228,11 +236,11 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
       </div>
 
       {showFooter && (
-        <div className="relative box-border flex w-full shrink-0 flex-col items-start gap-4 px-0 pb-6 pt-0">
+        <div className="relative box-border flex w-full shrink-0 flex-col items-start gap-3 px-0 pb-4 pt-0 sm:gap-4 sm:pb-6">
           <div className="relative h-0 w-full shrink-0">
             <div className="absolute bottom-0 left-0 right-0 top-[-1px] border-t border-[var(--helper-border)]" />
           </div>
-          <div className="relative flex w-full shrink-0 items-start justify-between">
+          <div className="relative flex w-full shrink-0 flex-col items-start justify-between gap-2 sm:flex-row sm:items-center">
             <div className="relative flex shrink-0 items-center gap-2 self-stretch">
               <div className="relative flex shrink-0 flex-col justify-center whitespace-nowrap font-['Inter'] text-sm font-medium not-italic leading-[0] text-slate-900 opacity-50">
                 <p className="leading-5">{claimsCountLabel}</p>
@@ -245,7 +253,7 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
                 disabled={!canGoPrev}
                 disabledTooltip={prevDisabledTooltip}
                 onClick={handlePrev}
-                className="px-1 py-0.5"
+                className="px-0.5 py-0.5 text-xs sm:px-1 sm:text-sm"
               >
                 <ChevronLeft className="size-4" />
                 {t.common.previous}
@@ -256,7 +264,7 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
                 disabled={!canGoNext}
                 disabledTooltip={nextDisabledTooltip}
                 onClick={handleNext}
-                className="px-1 py-0.5"
+                className="px-0.5 py-0.5 text-xs sm:px-1 sm:text-sm"
               >
                 {t.common.next}
                 <ChevronRight className="size-4" />

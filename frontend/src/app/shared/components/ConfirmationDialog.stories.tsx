@@ -3,7 +3,7 @@ import { useState } from "react";
 import { ConfirmationDialog } from "./ConfirmationDialog";
 
 export default {
-  title: "Shared/ConfirmationDialog",
+  title: "app/shared/components/ConfirmationDialog",
 } satisfies StoryDefault;
 
 // Story para Cancelar Verificação

@@ -5,7 +5,7 @@ import type { VerificationStatus } from "./ResultsHeader";
 import { Button } from "@/app/shared/components/ui/button";
 
 export default {
-  title: "Results/ResultsHeader",
+  title: "app/results/components/ResultsHeader",
 } satisfies StoryDefault;
 
 // Interactive story for testing all states

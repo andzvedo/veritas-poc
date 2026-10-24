@@ -3,7 +3,7 @@ import { Button } from "./button";
 import { WandSparkles } from "lucide-react";
 
 export default {
-  title: "UI/Button",
+  title: "app/shared/components/ui/button",
 } satisfies StoryDefault;
 
 // Filled Variants

@@ -82,16 +82,16 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
     >
       <DialogContent
         className={cn(
-          "w-[516px] bg-neutral-50 rounded-2xl px-10 py-8 gap-4",
+          "w-[calc(100%-2rem)] max-w-[516px] bg-neutral-50 rounded-2xl px-6 sm:px-10 py-6 sm:py-8 gap-4",
           "shadow-[0px_4px_8px_0px_rgba(0,0,0,0.15),var(--shadow-card)]",
           "outline outline-1 outline-offset-[-1px] outline-[var(--purple-primary)]",
           className
         )}
         showCloseButton={false}
       >
-        <div className="flex flex-col gap-6 items-center justify-start w-full">
+        <div className="flex flex-col gap-4 sm:gap-6 items-center justify-start w-full">
           {/* Icon Section */}
-          <div className={cn("flex items-center justify-center p-6 rounded-2xl", config.bgColor)}>
+          <div className={cn("flex items-center justify-center p-4 sm:p-6 rounded-2xl", config.bgColor)}>
             <div className={cn("flex items-center justify-center", config.iconColor)}>
               <IconComponent className="size-12" />
             </div>

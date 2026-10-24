@@ -290,7 +290,7 @@ const ResultsPage: React.FC<ResultsPageProps> = ({
     if (resultElement) {
       resultElement.scrollIntoView({
         behavior: 'smooth',
-        block: 'center',
+        block: 'start',
       });
     }
   }, []);
@@ -303,7 +303,7 @@ const ResultsPage: React.FC<ResultsPageProps> = ({
     if (claimElement) {
       claimElement.scrollIntoView({
         behavior: 'smooth',
-        block: 'center',
+        block: 'start',
       });
     }
   }, []);
@@ -318,7 +318,7 @@ const ResultsPage: React.FC<ResultsPageProps> = ({
       </div>
 
       <div className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 lg:px-20">
-        <div className="grid h-auto grid-cols-1 gap-8 lg:h-[calc(100vh-7rem)] lg:grid-cols-2 lg:gap-20">
+        <div className="grid h-auto min-h-[calc(100vh-7rem)] grid-cols-1 gap-4 sm:gap-6 lg:h-[calc(100vh-7rem)] lg:grid-cols-[1fr_2fr] lg:gap-12 xl:gap-20">
           <div className="rounded-lg">
             <ProcessedTextPanel
               text={verificationState.processedText || text || ''}

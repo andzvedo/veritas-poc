@@ -2,7 +2,7 @@ import type { Story, StoryDefault } from "@ladle/react";
 import HelperAccordion from "./HelperAccordion";
 
 export default {
-  title: "Shared/HelperAccordion",
+  title: "app/shared/components/HelperAccordion",
 } satisfies StoryDefault;
 
 export const Default: Story = () => (

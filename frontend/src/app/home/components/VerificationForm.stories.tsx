@@ -3,7 +3,7 @@ import { useState } from "react";
 import VerificationForm from "./VerificationForm";
 
 export default {
-  title: "Home/VerificationForm",
+  title: "app/home/components/VerificationForm",
 } satisfies StoryDefault;
 
 // Story interativa
@@ -20,7 +20,7 @@ export const Interactive: Story = () => {
     if (textValue.trim()) {
       setIsProcessing(true);
       console.log('Verificando fatos para:', textValue);
-      
+
       // Simular loading
       setTimeout(() => {
         setIsProcessing(false);

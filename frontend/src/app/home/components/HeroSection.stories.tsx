@@ -2,7 +2,7 @@ import type { Story, StoryDefault } from "@ladle/react";
 import HeroSection from "./HeroSection";
 
 export default {
-  title: "Home/HeroSection",
+  title: "app/home/components/HeroSection",
 } satisfies StoryDefault;
 
 // Story responsiva

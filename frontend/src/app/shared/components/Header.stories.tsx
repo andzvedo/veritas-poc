@@ -4,7 +4,7 @@ import Header from "./Header";
 import { Button } from "@/app/shared/components/ui/button";
 
 export default {
-  title: "Shared/Header",
+  title: "app/shared/components/Header",
 } satisfies StoryDefault;
 
 export const Default: Story = () => {
@@ -36,7 +36,7 @@ export const WithCustomActions: Story = () => (
   <div className="bg-neutral-100 p-6">
     <Header
       rightContent={
-        <Button variant="outlined" size="sm" onClick={() => console.log("Ação customizada")}> 
+        <Button variant="outlined" size="sm" onClick={() => console.log("Ação customizada")}>
           Entrar em Contato
         </Button>
       }

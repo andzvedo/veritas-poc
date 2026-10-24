@@ -2,7 +2,7 @@ import type { Story, StoryDefault } from "@ladle/react";
 import APIsRegistrationFlow from "./APIsRegistrationFlow";
 
 export default {
-  title: "Shared/APIsRegistrationFlow",
+  title: "app/shared/components/APIsRegistrationFlow",
 } satisfies StoryDefault;
 
 export const EmptyState: Story = () => (

@@ -4,7 +4,7 @@ import type { Verification } from "@veritas/shared";
 import ResultsPanel from "./ResultsPanel";
 
 export default {
-  title: "Results/ResultsPanel",
+  title: "app/results/components/ResultsPanel",
 } satisfies StoryDefault;
 
 const ACCESSED_AT = "2026-10-19T10:00:00-03:00";

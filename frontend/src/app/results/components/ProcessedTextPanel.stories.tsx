@@ -4,7 +4,7 @@ import ProcessedTextPanel from "./ProcessedTextPanel";
 import type { ResultData } from "@/lib/types/results";
 
 export default {
-  title: "Results/ProcessedTextPanel",
+  title: "app/results/components/ProcessedTextPanel",
 } satisfies StoryDefault;
 
 const sampleText = [

@@ -31,7 +31,7 @@ const ProcessedTextPanel: React.FC<ProcessedTextPanelProps> = ({
   return (
     <div className={cn("flex flex-col h-full", className)}>
       {/* Header */}
-      <div className="py-4 border-b border-[#d6d8db] flex-shrink-0">
+      <div className="py-3 sm:py-4 border-b border-[#d6d8db] flex-shrink-0">
         <div className="content-stretch flex items-center justify-between relative shrink-0 w-full">
           <ResultsSectionTitle
             icon={<Type className="size-[24px] text-slate-900" />}
@@ -50,7 +50,7 @@ const ProcessedTextPanel: React.FC<ProcessedTextPanelProps> = ({
       </div>
 
       {/* Text Content */}
-      <div className="px-2 flex-1 pb-4 overflow-y-auto flex flex-col justify-start max-h-[calc(100vh-200px)]">
+      <div className="px-1 sm:px-2 flex-1 pb-4 overflow-y-auto flex flex-col justify-start max-h-[calc(100vh-180px)] sm:max-h-[calc(100vh-200px)]">
         <InteractiveText
           text={text}
           results={results}

@@ -18,12 +18,12 @@ const buttonVariants = cva(
           "font-semibold bg-transparent text-[#8a5cda] border border-[#351397] hover:bg-neutral-100 hover:text-[#5d13dd] disabled:opacity-50 disabled:text-[#9d6eed] disabled:hover:bg-transparent disabled:hover:text-[#9d6eed] disabled:hover:opacity-50",
         // Link (Figma: Link SM/Default)
         link:
-          "font-normal bg-transparent text-[#8a5cda] hover:text-[#5d13dd] hover:bg-[#f6f6f6] hover:underline disabled:text-[#8a5cda] disabled:opacity-50 disabled:hover:text-[#8a5cda] disabled:hover:bg-transparent disabled:hover:no-underline disabled:hover:opacity-50 focus-visible:ring-0 focus-visible:ring-offset-0",
+          "font-normal bg-transparent text-[#8a5cda] hover:text-[#5d13dd] hover:underline disabled:text-[#8a5cda] disabled:opacity-50 disabled:hover:text-[#8a5cda] disabled:hover:bg-transparent disabled:hover:no-underline disabled:hover:opacity-50 focus-visible:ring-0 focus-visible:ring-offset-0",
       },
       size: {
         // SM: 32px height para filled/outlined
         sm: "h-8 px-3 py-1 text-[14px] leading-[24px] [&_svg]:size-4",
-        // Default: 48px height para filled/outlined  
+        // Default: 48px height para filled/outlined
         default: "h-12 px-4 py-3 text-[16px] leading-[24px] [&_svg]:size-6",
         icon: "size-12",
       },
@@ -52,7 +52,7 @@ const buttonVariants = cva(
       },
       // Link Default - Padding específico do Figma
       {
-        variant: "link", 
+        variant: "link",
         size: "default",
         class: "px-1.5 py-1 text-[16px] leading-normal [&_svg]:size-6",
       },
@@ -86,26 +86,26 @@ const Button = React.forwardRef<React.ElementRef<"button">, ButtonProps>(
     // Classes CSS para simular disabled quando tem tooltip (para manter focável)
     const getDisabledClasses = () => {
       if (!showTooltip) return ""
-      
+
       const baseClasses = "cursor-not-allowed shadow-none"
-      
+
       if (variant === "filled") {
         return cn(
-          baseClasses, 
+          baseClasses,
           "bg-[#c1a4f4] text-[#5d0bbc] [&_svg]:stroke-[#7f34d4]",
           "hover:bg-[#c1a4f4] hover:text-[#5d0bbc] hover:[&_svg]:stroke-[#7f34d4] hover:shadow-none"
         )
       }
       if (variant === "outlined") {
         return cn(
-          baseClasses, 
+          baseClasses,
           "opacity-50 text-[#9d6eed] [&_svg]:stroke-[#9d6eed]",
           "hover:bg-transparent hover:text-[#9d6eed] hover:opacity-50 hover:[&_svg]:stroke-[#9d6eed]"
         )
       }
       if (variant === "link") {
         return cn(
-          baseClasses, 
+          baseClasses,
           "text-[#8a5cda] opacity-50 [&_svg]:stroke-[#8a5cda]",
           "hover:text-[#8a5cda] hover:bg-transparent hover:no-underline hover:opacity-50 hover:[&_svg]:stroke-[#8a5cda]"
         )

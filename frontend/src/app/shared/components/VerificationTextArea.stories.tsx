@@ -3,7 +3,7 @@ import { useState } from "react";
 import VerificationTextArea from "./VerificationTextArea";
 
 export default {
-  title: "Shared/VerificationTextArea",
+  title: "app/shared/components/VerificationTextArea",
 } satisfies StoryDefault;
 
 export const Default: Story = () => {

@@ -52,7 +52,7 @@
   --veritas-gray-light: #f7f7f7;
   --veritas-gray-border: #d7d4de;
   --veritas-results-background: #f5f5f5;
-  
+
   /* Cores de estado */
   --veritas-success: #10b981;
   --veritas-warning: #f59e0b;
@@ -60,7 +60,7 @@
   --veritas-info: #3b82f6;
 
   /* === Design v0.2 - Tokens de Cores === */
-  
+
   /* Cores Primárias (Purple) */
   --purple-primary: #351397;
   --purple-accent: #731fb8;
@@ -167,11 +167,13 @@
   /* === Cores de Bordas === */
   --border-card: #d9d9d9;
   --border-analysis: #d8d8d8;
-  --border-hover-purple: #b09ac5;
+  --border-hover-purple: #af89f1;
+  --border-selected-purple: #844ae9;
 
   /* === Backgrounds === */
   --bg-analysis: rgba(245, 245, 245, 0.5);
   --bg-purple-light: rgba(132, 74, 233, 0.1);
+  --bg-purple-selected: rgba(132, 74, 233, 0.05);
 
   /* === Opacidades de Texto === */
   --text-opacity-dark: rgba(29, 30, 31, 0.9);
@@ -186,6 +188,16 @@
   /* === Sombras Específicas === */
   --shadow-card: 0px 20px 80px 0px rgba(137, 44, 219, 0.2);
   --shadow-hover-accordion: 0 0 10px 0 rgba(0, 0, 0, 0.10);
+  --shadow-card-hover: 0px 4px 16px 0px rgba(137, 44, 219, 0.2);
+  --shadow-card-selected: 0px 4px 12px 0px rgba(95, 0, 179, 0.30);
+
+  /* === Text Highlight Colors (Node 574:14996) === */
+  --text-highlight-base: #707070;
+  --text-highlight-claim: #5d13dd;
+  --text-highlight-claim-dark: #4200b4;
+  --text-highlight-bg: #e3d9f7;
+  --text-highlight-underline: rgba(93, 19, 221, 0.5);
+  --text-highlight-underline-selected: rgba(66, 0, 180, 0.85);
 }
 
 .dark {
@@ -197,7 +209,7 @@
   --veritas-gray-light: #1e293b;
   --veritas-gray-border: #4b5563;
   --veritas-results-background: #0f172a;
-  
+
   /* Cores de estado para dark */
   --veritas-success: #10b981;
   --veritas-warning: #f59e0b;
@@ -260,8 +272,18 @@
   * {
     @apply border-border outline-ring/50;
   }
+
+  html {
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: none;
+  }
+
   body {
     @apply bg-background text-foreground;
+    min-height: 100vh;
+    overflow-x: hidden;
+    overscroll-behavior: none;
   }
 }
 

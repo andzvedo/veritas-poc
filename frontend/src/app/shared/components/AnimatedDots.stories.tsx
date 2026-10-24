@@ -2,7 +2,7 @@ import type { Story, StoryDefault } from "@ladle/react";
 import AnimatedDots from "./AnimatedDots";
 
 export default {
-  title: "Shared/AnimatedDots",
+  title: "app/shared/components/AnimatedDots",
 } satisfies StoryDefault;
 
 // Story básica

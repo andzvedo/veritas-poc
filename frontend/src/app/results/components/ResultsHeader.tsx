@@ -144,10 +144,10 @@ const ResultsHeader: React.FC<ResultsHeaderProps> = ({
         className
       )}
     >
-      <div className="content-stretch flex items-center justify-between relative shrink-0 w-full">
+      <div className="content-stretch flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 relative shrink-0 w-full">
         {/* Status Section */}
         <div className="flex flex-[1_0_0] flex-row items-center self-stretch">
-          <div className="content-stretch flex flex-[1_0_0] flex-wrap gap-[16px] h-full items-baseline min-h-px min-w-px relative shrink-0">
+          <div className="content-stretch flex flex-[1_0_0] flex-wrap gap-3 sm:gap-[16px] h-full items-baseline min-h-px min-w-px relative shrink-0">
             {/* Título "Verificações" */}
             <ResultsSectionTitle
               icon={<Sparkles className="size-[24px] text-slate-900" />}

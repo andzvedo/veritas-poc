@@ -3,7 +3,7 @@ import { Button } from "./button";
 import { Save, Send, Trash2 } from "lucide-react";
 
 export default {
-  title: "UI/Button/Disabled with Tooltip",
+  title: "app/shared/components/ui/button-with-tooltip",
 } satisfies StoryDefault;
 
 // Botão desabilitado com tooltip - Filled variant
@@ -22,7 +22,7 @@ export const FilledDisabledWithTooltip: Story = () => (
         Salvar
       </Button>
     </div>
-    
+
     <div className="space-y-2">
       <p className="text-sm text-gray-600">
         Botão desabilitado SEM tooltip (comportamento anterior):
@@ -64,7 +64,7 @@ export const DifferentSizes: Story = () => (
         Deletar
       </Button>
     </div>
-    
+
     <div>
       <p className="text-sm text-gray-600 mb-2">Tamanho Default:</p>
       <Button
@@ -105,7 +105,7 @@ export const ComparisonWithAndWithout: Story = () => (
         </Button>
       </div>
     </div>
-    
+
     <div className="space-y-2">
       <h3 className="font-semibold">❌ Sem Tooltip (Menos Acessível)</h3>
       <p className="text-sm text-gray-600">

@@ -222,7 +222,7 @@ const HomePage: React.FC<HomePageProps> = ({ className, router: propRouter }) =>
 
   return (
     <div className={cn(
-      "bg-gradient-to-b from-[#f5f5f5] to-[#eaeaea] relative w-full min-h-screen overflow-hidden",
+      "bg-gradient-to-b from-[#f5f5f5] to-[#eaeaea] relative w-full min-h-screen",
       className
     )}>
       {/* Barra Superior */}
@@ -237,8 +237,8 @@ const HomePage: React.FC<HomePageProps> = ({ className, router: propRouter }) =>
 
       {/* Modal de Configurações */}
       {showSettings && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="relative max-w-4xl w-full mx-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="relative max-w-4xl w-full">
             <ApiSetupPage
               onComplete={(keys) => {
                 saveApiKeys(keys);

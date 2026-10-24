@@ -10,7 +10,7 @@ const mockRouter = {
 };
 
 export default {
-  title: "Pages/Home",
+  title: "app/home/components/HomePage",
 } satisfies StoryDefault;
 
 const ensureApiKeys = () => {

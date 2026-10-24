@@ -2,7 +2,7 @@ import type { Story, StoryDefault } from "@ladle/react";
 import AnimatedDots from "../AnimatedDots";
 
 export default {
-  title: "UI/AnimatedDots",
+  title: "app/shared/components/ui/AnimatedDots",
 } satisfies StoryDefault;
 
 export const WithinButton: Story = () => (
