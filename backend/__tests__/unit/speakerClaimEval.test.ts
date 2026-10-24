@@ -14,12 +14,12 @@ describe('LIVE-034 speaker/claim eval', () => {
   });
 
   it('rejects fixtures whose gold quote is not literal in the segment', async () => {
-    const [fixture] = await loadDialogueFixtures();
+    const fixture = (await loadDialogueFixtures()).at(0);
     if (fixture === undefined) {
       throw new Error('sem fixture');
     }
     const broken = structuredClone(fixture);
-    const gold = broken.goldClaims[0];
+    const gold = broken.goldClaims.at(0);
     if (gold === undefined) {
       throw new Error('sem gold');
     }

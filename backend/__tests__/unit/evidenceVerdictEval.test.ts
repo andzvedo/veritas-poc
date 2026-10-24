@@ -42,7 +42,7 @@ describe('LIVE-035 evidence + verdict eval', async () => {
   it('separates factual errors from interpretive divergences', async () => {
     expect(report.metrics.interpretiveDivergences.numerator).toBeGreaterThanOrEqual(1);
     expect(report.metrics.factualErrorCorrections.numerator).toBe(0);
-    const [first] = report.runs;
+    const first = report.runs.at(0);
     if (first?.annotation === undefined) {
       throw new Error('sem anotação');
     }
