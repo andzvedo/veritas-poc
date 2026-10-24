@@ -8,6 +8,10 @@ import {
   retrieveEvidence,
 } from '#/analysis/evidenceRetrieval.js';
 import { ResearchError } from '#/research/types.js';
+import {
+  ResearchUsageBudget,
+  withResearchBudget,
+} from '#/research/budget.js';
 import type {
   ExtractedDocument,
   ResearchProvider,
@@ -122,6 +126,24 @@ describe('classifySourceType', () => {
 });
 
 describe('retrieveEvidence', () => {
+  it('propagates extract quota even when another document was recovered', async () => {
+    const provider = new FakeProvider({
+      hits: [hit('https://example.org/a'), hit('https://example.org/b')],
+      documents: {
+        'https://example.org/a': LONG_CONTENT,
+        'https://example.org/b': LONG_CONTENT,
+      },
+    });
+    const budgeted = withResearchBudget(
+      provider,
+      new ResearchUsageBudget({ maxExtracts: 1 }),
+    );
+
+    await expect(
+      retrieveEvidence({ claim: CLAIM, provider: budgeted }),
+    ).rejects.toMatchObject({ kind: 'QUOTA' });
+  });
+
   it('dedupes urls before extracting and keeps source ids sequential', async () => {
     const url = 'https://www.bcb.gov.br/estabilidadefinanceira/pix';
     const provider = new FakeProvider({

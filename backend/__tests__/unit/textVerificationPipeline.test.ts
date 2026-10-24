@@ -11,6 +11,7 @@ import {
   runTextVerificationPipeline,
 } from '#/analysis/textVerificationPipeline.js';
 import { ResearchError } from '#/research/types.js';
+import { LlmUsageBudget } from '#/llm/budget.js';
 import type {
   ExtractedDocument,
   ResearchProvider,
@@ -141,6 +142,26 @@ const EXTRACTION_JSON = JSON.stringify([
 ]);
 
 describe('investigateClaim (LIVE-017 wiring)', () => {
+  it('maps exhausted live LLM usage budget to DEFERRED without a verdict', async () => {
+    const provider = new FakeProvider();
+    const { llm, invoke } = createLlm(EVALUATION_JSON, FALSE_VERDICT_JSON);
+    const usageBudget = new LlmUsageBudget({ maxCalls: 0 });
+
+    const data = await investigateClaim({
+      claim: FACT_CHECKABLE_CLAIM,
+      extractionChunkIndex: 0,
+      evaluationLlm: llm,
+      researchProvider: provider,
+      usageBudget,
+      now: NOW,
+    });
+
+    expect(provider.searches).toHaveLength(1);
+    expect(invoke).not.toHaveBeenCalled();
+    expect(data.verification?.status).toBe('DEFERRED');
+    expect(data.verification?.verdict).toBeUndefined();
+  });
+
   it('always researches fact-checkable claims without a confidence gate', async () => {
     const provider = new FakeProvider();
     const { llm, invoke } = createLlm(EVALUATION_JSON, FALSE_VERDICT_JSON);

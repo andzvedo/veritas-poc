@@ -25,6 +25,8 @@ import {
   validateMisleading,
 } from '#/analysis/misleadingMechanism.js';
 import { ParsingError } from '#/utils/errors.js';
+import { LlmError } from '#/llm/errors.js';
+import type { LlmUsageBudget } from '#/llm/budget.js';
 import z from 'zod';
 
 export const NO_EVIDENCE_CONCLUSION =
@@ -83,6 +85,7 @@ export type GenerateVerificationArgs = {
   atomicClaim?: AtomicClaim;
   verificationId?: string;
   now?: () => Date;
+  usageBudget?: LlmUsageBudget;
 };
 
 const VERDICT_PROMPT =
@@ -337,11 +340,17 @@ type DraftAttempt =
 async function requestDraft(
   llm: BaseChatModel,
   messages: BaseMessage[],
+  usageBudget?: LlmUsageBudget,
+  isRetry = false,
 ): Promise<DraftAttempt> {
   try {
+    usageBudget?.consume(isRetry);
     const response = await llm.invoke(messages);
     return { ok: true, draft: parseVerdictDraft(modelText(response)) };
   } catch (error) {
+    if (error instanceof LlmError && error.kind === 'QUOTA') {
+      throw error;
+    }
     return {
       ok: false,
       issues: [
@@ -616,7 +625,7 @@ export async function generateVerification(
   let issues: string[] = [];
   let previous: VerdictDraft | undefined;
 
-  const first = await requestDraft(args.llm, messages);
+  const first = await requestDraft(args.llm, messages, args.usageBudget);
   if (first.ok) {
     previous = first.draft;
     const validation = validateCandidate(buildCandidate(first.draft));
@@ -637,7 +646,12 @@ export async function generateVerification(
         : JSON.stringify(previous, null, 2),
   });
 
-  const second = await requestDraft(args.llm, repairMessages);
+  const second = await requestDraft(
+    args.llm,
+    repairMessages,
+    args.usageBudget,
+    true,
+  );
   if (second.ok) {
     const validation = validateCandidate(buildCandidate(second.draft));
     if (validation.ok) {

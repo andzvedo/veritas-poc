@@ -4,6 +4,7 @@ import { EVIDENCE_RELATION_SCHEMA } from '@veritas/shared';
 import type { AtomicClaim, Evidence, Source } from '@veritas/shared';
 import { ParsingError } from '#/utils/errors.js';
 import z from 'zod';
+import type { LlmUsageBudget } from '#/llm/budget.js';
 
 /** Per-document budget of the inspection prompt (chars). */
 export const MAX_DOCUMENT_PROMPT_CHARS = 6000;
@@ -23,6 +24,7 @@ export type EvaluateEvidenceArgs = {
   sources: Source[];
   documents: Record<string, string>;
   llm: BaseChatModel;
+  usageBudget?: LlmUsageBudget;
 };
 
 export type EvaluationResult = {
@@ -283,7 +285,7 @@ function validateDraft(
 export async function evaluateEvidence(
   args: EvaluateEvidenceArgs,
 ): Promise<EvaluationResult> {
-  const { claim, sources, documents, llm } = args;
+  const { claim, sources, documents, llm, usageBudget } = args;
   const documentMap = new Map(Object.entries(documents));
   const inspectedSources = sources.filter(
     (source) => (documentMap.get(source.id)?.trim().length ?? 0) > 0,
@@ -304,6 +306,7 @@ export async function evaluateEvidence(
     ),
   });
 
+  usageBudget?.consume();
   const response = await llm.invoke(messages);
   const draft = parseEvidenceResponse(modelText(response));
 
