@@ -18,6 +18,8 @@ interface ResultsPanelProps {
   onCopyPlainText?: () => void;
   onResultClick?: (resultId: string) => void;
   selectedResultId?: string;
+  /** Optional context shown above the cards (e.g. live gating notes). */
+  notice?: React.ReactNode;
 }
 
 const ResultsPanel: React.FC<ResultsPanelProps> = ({
@@ -29,6 +31,7 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
   onCopyPlainText,
   onResultClick,
   selectedResultId,
+  notice,
 }) => {
   const { t } = useI18n();
 
@@ -220,6 +223,7 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
             'justify-center',
         )}
       >
+        {notice}
         {renderResults()}
       </div>
 

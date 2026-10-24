@@ -391,29 +391,16 @@
       "title": "Transcript",
       "subtitle": "Continuous updates",
       "empty": "Waiting for the first speech…",
-      "unknownSpeaker": "Unknown authorship",
-      "unconfirmedSpeaker": "unconfirmed",
       "speechTimeHint": "Speech time in the capture (not processing time)",
       "revisionConflict": "Revision conflict",
       "correct": "Correct speech",
       "correctLabel": "Corrected segment text",
       "saveCorrection": "Save correction",
-      "claimChip": "Claim",
-      "revision": "Rev. {{revision}}",
       "gapsNotice": "{{count}} audio gap(s) flagged — missing samples are not invented.",
-      "status": {
-        "PROVISIONAL": "Partial",
-        "FINAL": "Final",
-        "BLOCKED": "Blocked"
-      },
-      "uncertainty": {
-        "NUMBER": "Uncertain number",
-        "NEGATION": "Uncertain negation",
-        "SUBJECT": "Uncertain subject",
-        "OVERLAP": "Overlap",
-        "LOW_CONFIDENCE": "Low confidence",
-        "TRANSCRIPTION_ERROR": "Transcription error"
-      }
+      "speakerOrdinal": "Speaker {{n}}",
+      "speakerParticipant": "Participant",
+      "gapsBadge": "{{count}} gap(s)",
+      "claimLinkLabel": "View verification for claim {{n}}"
     },
     "workspace": {
       "eyebrow": "Veritas / Automatic listening",
@@ -443,6 +430,15 @@
       "RATE_LIMITED": "Too many events were sent to the server in a short time. Wait a few seconds and try again.",
       "START_FAILED": "The server did not confirm the live session start. Make sure the backend is running and try again.",
       "UNKNOWN": "The live session was interrupted by a server error. Start listening again."
+    },
+    "gating": {
+      "title": "Not verified",
+      "unknownAuthorship": "{{count}} utterance(s) without a confirmed speaker were not verified.",
+      "blocked": "{{count}} utterance(s) blocked from verification.",
+      "uncertainNumber": "{{count}} utterance(s) with an uncertain number in the transcript.",
+      "uncertainNegation": "{{count}} utterance(s) with an uncertain negation in the transcript.",
+      "otherUncertain": "{{count}} utterance(s) with low transcription confidence.",
+      "hint": "Confirm the speaker or correct the speech in the transcript to enable verification."
     }
   }
 }
