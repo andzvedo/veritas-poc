@@ -36,6 +36,7 @@ const LiveWorkspace: React.FC<LiveWorkspaceProps> = ({ className }) => {
   const sessionId = useFactCheckStore((s) => s.sessionId);
   const claims = useFactCheckStore((s) => s.claims);
   const status = useFactCheckStore((s) => s.status);
+  const error = useFactCheckStore((s) => s.error);
   const liveSessionState = useFactCheckStore((s) => s.liveSessionState);
   const segments = useFactCheckStore((s) => s.segments);
   const speakerMappings = useFactCheckStore((s) => s.speakerMappings);
@@ -208,6 +209,7 @@ const LiveWorkspace: React.FC<LiveWorkspaceProps> = ({ className }) => {
           >
             <ResultsPanel
               status={panelStatus}
+              errorMessage={error ?? undefined}
               verifications={displayVerifications}
               selectedResultId={selectedClaimId}
               onResultClick={setSelectedClaimId}

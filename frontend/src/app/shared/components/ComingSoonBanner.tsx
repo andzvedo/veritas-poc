@@ -32,7 +32,7 @@ export const ComingSoonBanner: React.FC<ComingSoonBannerProps> = ({ className })
         className
       )}
     >
-      {/* Text files still upcoming; live tab audio is available via ModeToggle. */}
+      {/* Text files still upcoming; live microphone capture is available via ModeToggle. */}
       <div className="flex items-center gap-1">
         <FileText className="w-5 h-5" style={{ color: 'var(--purple-accent)' }} />
         <p className="text-sm leading-6 text-[var(--text-muted)]">

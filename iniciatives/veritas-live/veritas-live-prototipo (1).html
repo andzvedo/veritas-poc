@@ -90,14 +90,14 @@
  <div class="setup-grid">
   <div class="panel glow"><div class="panel-pad"><h2 class="panel-title">Como deseja verificar?</h2><p class="muted">Escolha como enviar o conteúdo para o Veritas.</p>
    <div class="mode-toggle" role="tablist" aria-label="Modo de entrada"><button id="modeLive" class="active" role="tab" aria-selected="true"><svg><use href="#i-wave"></use></svg> Áudio ao vivo</button><button id="modeText" role="tab" aria-selected="false"><svg><use href="#i-text"></use></svg> Colar texto</button></div>
-   <div id="audioSetup"><label class="field-label" for="sourceSelect">Fonte de áudio</label><select class="input-select" id="sourceSelect"><option value="tab">Aba do navegador (desktop)</option><option value="mic">Microfone (TV ou outro dispositivo)</option></select><div class="help-row"><svg><use href="#i-info"></use></svg><span id="sourceHint">Na implementação real, o navegador solicitará permissão para compartilhar uma aba com áudio. Esta demo não captura som.</span></div><button class="cta full setup-cta" id="startLive"><svg><use href="#i-play"></use></svg> Simular escuta ao vivo <svg><use href="#i-arrow"></use></svg></button></div>
+   <div id="audioSetup"><label class="field-label" for="sourceSelect">Fonte de áudio</label><select class="input-select" id="sourceSelect"><option value="mic" selected>Microfone</option></select><div class="help-row"><svg><use href="#i-info"></use></svg><span id="sourceHint">Após o clique, o navegador pedirá acesso ao microfone. Esta demo não captura som de verdade.</span></div><button class="cta full setup-cta" id="startLive"><svg><use href="#i-play"></use></svg> Simular escuta ao vivo <svg><use href="#i-arrow"></use></svg></button></div>
    <div id="textSetup" hidden><label class="field-label" for="textInput">Texto para verificar</label><textarea id="textInput" class="textbox" placeholder="Cole uma afirmação ou um trecho de texto..."></textarea><button class="cta full setup-cta" id="startText"><svg><use href="#i-search"></use></svg> Simular verificação de texto <svg><use href="#i-arrow"></use></svg></button></div>
   </div></div>
   <div class="panel"><div class="panel-pad"><p class="eyebrow">Sem intervenção a cada frase</p><h2 class="panel-title">Deixe o Veritas trabalhar</h2><div class="steps"><div class="step"><span class="step-icon"><svg><use href="#i-wave"></use></svg></span><div><strong>1. Escuta contínua</strong><span>Áudio é transformado em transcrição progressiva.</span></div></div><div class="step"><span class="step-icon"><svg><use href="#i-text"></use></svg></span><div><strong>2. Identificação de afirmações</strong><span>Falas são agrupadas, contextualizadas e atribuídas a participantes.</span></div></div><div class="step"><span class="step-icon"><svg><use href="#i-search"></use></svg></span><div><strong>3. Pesquisa em paralelo</strong><span>O Veritas busca evidências enquanto a conversa continua.</span></div></div><div class="step"><span class="step-icon"><svg><use href="#i-shield"></use></svg></span><div><strong>4. Vereditos com provas</strong><span>Explica onde a afirmação contradiz evidências e como pode induzir ao erro.</span></div></div></div><div class="quiet-note">Demonstração com falas históricas publicadas em 2022 e 2026, misturadas apenas para testar a interface. O áudio e a sequência são simulados. Nenhuma API ou transmissão é acessada.</div></div></div>
  </div>
 </section>
 <section id="liveScreen" hidden>
- <div class="live-header"><div><p class="eyebrow">Veritas / Escuta automática</p><h1 class="page-title">Acompanhamento ao vivo</h1><p class="intro">Demonstração com afirmações históricas de anos diferentes. Cada conclusão mostra contradição, mecanismo e fontes.</p><div class="live-meta"><span class="status-pill running" id="liveStatus"><span class="dot"></span><span id="liveStatusText">Simulando escuta</span></span><span class="stat-mini" id="timer">00:00</span><span class="stat-mini" id="claimCount">0 afirmações</span><span class="stat-mini" id="liveSource">Áudio da aba · mock</span></div></div><div class="controls"><button class="cta secondary" id="pauseBtn"><svg><use href="#i-pause"></use></svg><span id="pauseText">Pausar</span></button><button class="cta stop" id="stopBtn"><svg><use href="#i-stop"></use></svg> Encerrar</button></div></div>
+ <div class="live-header"><div><p class="eyebrow">Veritas / Escuta automática</p><h1 class="page-title">Acompanhamento ao vivo</h1><p class="intro">Demonstração com afirmações históricas de anos diferentes. Cada conclusão mostra contradição, mecanismo e fontes.</p><div class="live-meta"><span class="status-pill running" id="liveStatus"><span class="dot"></span><span id="liveStatusText">Simulando escuta</span></span><span class="stat-mini" id="timer">00:00</span><span class="stat-mini" id="claimCount">0 afirmações</span><span class="stat-mini" id="liveSource">Microfone · mock</span></div></div><div class="controls"><button class="cta secondary" id="pauseBtn"><svg><use href="#i-pause"></use></svg><span id="pauseText">Pausar</span></button><button class="cta stop" id="stopBtn"><svg><use href="#i-stop"></use></svg> Encerrar</button></div></div>
  <div class="mobile-tabs" role="tablist" aria-label="Visualizar painel"><button id="mobileTrans" role="tab" aria-selected="false">Transcrição</button><button id="mobileClaims" class="active" role="tab" aria-selected="true">Verificações <span id="mobileCount"></span></button></div>
  <div class="work-grid">
   <section class="panel pane stream-panel" id="transPane"><div class="pane-head"><h2><svg><use href="#i-text"></use></svg> Transcrição</h2><span class="pane-side">Atualização contínua</span></div><div class="pane-body" id="transcriptItems" aria-live="polite" aria-relevant="additions"><div class="empty-stream"><div><svg><use href="#i-wave"></use></svg><div>Aguardando primeira fala simulada...</div></div></div></div></section>
@@ -167,7 +167,7 @@ const samples=[
  {speaker:'B',origin:'18/10/2026 · Debate Band',text:'R$ 7 bilhões que você [Lula] gastou em viagens com a Janja.',claim:true,check:'viagens'},
  {speaker:'M',text:'A consulta às fontes permite identificar a quem o número realmente se refere.'}
 ];
-let phase='setup',mode='live',paused=false,step=0,elapsed=0,job=null,source='tab',mobileView='claims',filter='all',transcripts=[],claims=[];
+let phase='setup',mode='live',paused=false,step=0,elapsed=0,job=null,source='mic',mobileView='claims',filter='all',transcripts=[],claims=[];
 const expanded=new Set();
 function time(s){return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
 function start(kind){
@@ -262,9 +262,10 @@ $('modeText').addEventListener('click',()=>{
  $('modeLive').classList.remove('active');$('modeText').classList.add('active');
  $('modeText').setAttribute('aria-selected','true');$('modeLive').setAttribute('aria-selected','false');
 });
+source='mic';
 $('sourceSelect').addEventListener('change',e=>{
  source=e.target.value;
- $('sourceHint').textContent=source==='mic'?'No celular, o microfone pode captar o áudio de uma TV. Esta demo não acessa o microfone.':'Na implementação real, o navegador solicitará permissão para compartilhar uma aba com áudio. Esta demo não captura som.';
+ $('sourceHint').textContent='Após o clique, o navegador pedirá acesso ao microfone. Esta demo não captura som de verdade.';
 });
 $('startLive').addEventListener('click',()=>start('live'));
 $('startText').addEventListener('click',()=>{if(!$('textInput').value.trim()){alert('Insira algum texto para simular a entrada.');return}start('text')});
@@ -276,7 +277,7 @@ document.querySelectorAll('[data-filter]').forEach(btn=>btn.addEventListener('cl
  filter=btn.dataset.filter;document.querySelectorAll('.chip').forEach(b=>b.classList.toggle('active',b===btn));renderClaims();
 }));
 $('logoLink').addEventListener('click',e=>{e.preventDefault();stop()});
-if(window.matchMedia('(max-width:720px)').matches){$('sourceSelect').value='mic';$('sourceSelect').dispatchEvent(new Event('change'))}
+$('sourceSelect').value='mic';$('sourceSelect').dispatchEvent(new Event('change'));
 })();
 </script>
 </body>

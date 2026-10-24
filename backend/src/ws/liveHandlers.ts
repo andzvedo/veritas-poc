@@ -16,11 +16,13 @@ import {
   LIVE_ID_SCHEMA,
   LIVE_PAYLOAD_LIMITS,
   LIVE_SESSION_CONTROL_SCHEMA,
+  PROTOCOL_VERSION,
   RESUME_SESSION_SCHEMA,
   RETRY_VERIFICATION_SCHEMA,
   START_LIVE_SESSION_SCHEMA,
   SUBMIT_HUMAN_REVIEW_SCHEMA,
   UPDATE_SPEAKER_MAPPING_SCHEMA,
+  type AudioChunkRejectionReason,
   type ClientToServerEvents,
   type LiveSessionErrorCode,
   type ServerToClientEvents,
@@ -92,7 +94,7 @@ const emitLiveError = (
 ): void => {
   socket.emit('LIVE_SESSION_STATE', {
     envelope: {
-      protocolVersion: 1,
+      protocolVersion: PROTOCOL_VERSION,
       // Unique per emission: the client dedupes by eventId, and two errors in
       // the same millisecond must not collapse into one.
       eventId: `err-${Date.now().toString(36)}-${randomUUID().slice(0, 8)}`,
@@ -106,6 +108,33 @@ const emitLiveError = (
       reason: redactClientMessage(message),
       ...(code === undefined ? {} : { code }),
     },
+  });
+};
+
+// A rejected chunk still releases its slot in the client's flow-control window.
+// Echo only validated client identifiers; never expose another session's state.
+const CHUNK_ACK_REFERENCE_SCHEMA = AUDIO_CHUNK_SCHEMA.pick({
+  sessionId: true,
+  chunkSeq: true,
+});
+
+const emitChunkNack = (
+  socket: LiveSocket,
+  payload: unknown,
+  reason: AudioChunkRejectionReason,
+): void => {
+  const parsed = CHUNK_ACK_REFERENCE_SCHEMA.safeParse(payload);
+  if (!parsed.success) return;
+  const { sessionId, chunkSeq } = parsed.data;
+  socket.emit('AUDIO_CHUNK_ACK', {
+    envelope: {
+      protocolVersion: PROTOCOL_VERSION,
+      eventId: `nack-${Date.now().toString(36)}-${randomUUID().slice(0, 8)}`,
+      sessionId,
+      eventSeq: 0,
+      emittedAt: new Date().toISOString(),
+    },
+    data: { sessionId, chunkSeq, accepted: false, reason },
   });
 };
 
@@ -307,12 +336,13 @@ export function attachLiveSessionHandlers(
       try {
         const googleKey = data.apiKeys?.google?.trim() ?? '';
         const tavilyKey = data.apiKeys?.tavily?.trim() ?? '';
-        const transcription = await createTranscription({
-          googleApiKey: googleKey.length > 0 ? googleKey : undefined,
-          env,
-        });
         const overrides = options.pipelineOverrides ?? {};
-        const effectiveTranscription = overrides.transcription ?? transcription;
+        const effectiveTranscription =
+          overrides.transcription ??
+          (await createTranscription({
+            googleApiKey: googleKey.length > 0 ? googleKey : undefined,
+            env,
+          }));
         // Fail fast with an actionable message: starting a session without a
         // transcriber only turned every window into a silent gap (and every
         // later chunk into a rejected retry) before this check existed.
@@ -391,19 +421,24 @@ export function attachLiveSessionHandlers(
         // client's in-flight window forever. Reject it explicitly (owner only)
         // so the client records one gap and moves on. Not a session ERROR.
         const limited = AUDIO_CHUNK_SCHEMA.safeParse(payload);
-        if (limited.success) {
-          registry
-            .getOwned(limited.data.sessionId, socket.id)
-            ?.rejectAudioChunk(limited.data.chunkSeq, 'rate_limited');
+        const owned = limited.success
+          ? registry.getOwned(limited.data.sessionId, socket.id)
+          : undefined;
+        if (owned !== undefined && limited.success) {
+          owned.rejectAudioChunk(limited.data.chunkSeq, 'rate_limited');
+        } else {
+          emitChunkNack(socket, payload, 'rate_limited');
         }
         return;
       }
       const parsed = AUDIO_CHUNK_SCHEMA.safeParse(payload);
       if (!parsed.success) {
+        emitChunkNack(socket, payload, 'invalid');
         return;
       }
       const pcm = toPcmBuffer(audio);
       if (pcm === undefined) {
+        emitChunkNack(socket, parsed.data, 'invalid');
         emitLiveError(
           socket,
           parsed.data.sessionId,
@@ -411,8 +446,11 @@ export function attachLiveSessionHandlers(
         );
         return;
       }
-      const pipeline = requireOwned(registry, socket, parsed.data.sessionId);
+      // START is asynchronous. Settle early/orphan chunks without changing
+      // session state or restarting retries for a terminal rejection.
+      const pipeline = registry.getOwned(parsed.data.sessionId, socket.id);
       if (pipeline === undefined) {
+        emitChunkNack(socket, parsed.data, 'not_listening');
         return;
       }
       const { sessionId, ...meta } = parsed.data;
