@@ -1,0 +1,60 @@
+{
+  "id": "auxilio-600-temporal-supported",
+  "title": "Auxílio Brasil chegou a R$ 600 em 2022 (proposição temporal)",
+  "family": "auxilio-600",
+  "participant": "Flávio Bolsonaro",
+  "originalQuote": "Foi o presidente Bolsonaro que passou para, no mínimo, 600 reais o Bolsa Família.",
+  "normalizedClaim": "O Auxílio Brasil chegou a R$ 600 no governo Bolsonaro em 2022.",
+  "atomicProposition": "O benefício Auxílio Brasil chegou a R$ 600 em 2022 durante o governo Bolsonaro.",
+  "transcriptConfirmed": true,
+  "verdictDraft": {
+    "verdict": "SUPPORTED",
+    "conclusion": "O Auxílio Brasil chegou a R$ 600 em 2022, durante o governo Bolsonaro.",
+    "contradiction": "Não deve aparecer — proposição temporal sustentada.",
+    "limitations": [
+      "Prazo de vigência e continuidade posterior são contexto, sem transformar a proposição temporal em falsa."
+    ]
+  },
+  "sources": [
+    {
+      "id": "src-ab-1",
+      "title": "Linha do tempo Auxílio Brasil R$ 600",
+      "publisher": "corpus-local",
+      "url": "https://www.gov.br/cidadania/pt-br/auxilio-brasil",
+      "type": "PRIMARY",
+      "corpusDocumentId": "auxilio-brasil-600-2022",
+      "indirect": false
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev-ab-1",
+      "sourceId": "src-ab-1",
+      "relation": "SUPPORTS",
+      "excerpt": "Em 2022, o Auxílio Brasil foi ampliado para o valor de R$ 600 por família, com financiamento previsto até dezembro de 2022, com participação do Executivo e do Congresso Nacional.",
+      "explanation": "Confirma o pagamento de R$ 600 em 2022 no governo Bolsonaro."
+    },
+    {
+      "id": "ev-ab-2",
+      "sourceId": "src-ab-1",
+      "relation": "CONTEXTUALIZES",
+      "excerpt": "O programa Auxílio Brasil substituiu o Bolsa Família em 2021.",
+      "explanation": "Esclarece o nome oficial do programa em 2022."
+    }
+  ],
+  "gaps": [],
+  "expected": {
+    "status": "COMPLETED",
+    "verdict": "SUPPORTED",
+    "contradictionRequired": false,
+    "expectedMechanismCodes": [],
+    "notes": "Não impor Enganosa só por omitir continuidade futura nesta variante temporal."
+  },
+  "references": [
+    {
+      "id": "S08",
+      "label": "Documentação do valor R$ 600 em 2022",
+      "primary": true
+    }
+  ]
+}

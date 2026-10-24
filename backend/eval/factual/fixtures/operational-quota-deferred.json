@@ -1,0 +1,20 @@
+{
+  "id": "operational-quota-deferred",
+  "title": "Cota de pesquisa esgotada → DEFERRED sem veredito factual",
+  "family": "operational",
+  "participant": "Participante B",
+  "originalQuote": "Qualquer afirmação factual sob cota esgotada.",
+  "normalizedClaim": "Qualquer afirmação factual sob cota esgotada.",
+  "atomicProposition": "Qualquer afirmação factual sob cota esgotada.",
+  "transcriptConfirmed": true,
+  "sources": [],
+  "evidence": [],
+  "gaps": [],
+  "expected": {
+    "status": "DEFERRED",
+    "contradictionRequired": false,
+    "limitationSubstrings": ["Cota"],
+    "notes": "Erro de cota não gera veredito inventado."
+  },
+  "references": []
+}

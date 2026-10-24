@@ -3,5 +3,7 @@ export * from './deepResearch.js';
 export * from './claimExtraction.js';
 export * from './evidenceRetrieval.js';
 export * from './evidenceEvaluation.js';
+export * from './contradictionDetection.js';
+export * from './misleadingMechanism.js';
 export * from './verdictGeneration.js';
 export * from './textVerificationPipeline.js';

@@ -16,3 +16,14 @@ export const DEFAULT_ADVANCED_MODEL: LLMConfig = {
   model: 'gemini-3.6-flash',
   temperature: 0.1,
 };
+
+/**
+ * Free/open-source-friendly default: OpenAI-compatible local endpoint
+ * (Ollama, LM Studio, vLLM…). No paid subscription required (LIVE-018).
+ */
+export const DEFAULT_LOCAL_MODEL: LLMConfig = {
+  provider: 'openai',
+  model: 'llama3.2',
+  temperature: 0.1,
+  baseURL: 'http://127.0.0.1:11434/v1',
+};

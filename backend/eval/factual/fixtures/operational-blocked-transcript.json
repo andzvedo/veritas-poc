@@ -1,0 +1,42 @@
+{
+  "id": "operational-blocked-transcript",
+  "title": "Transcrição não confirmada → BLOCKED",
+  "family": "operational",
+  "participant": "Participante C",
+  "originalQuote": "O valor NÃO foi pago em 2022.",
+  "normalizedClaim": "O valor não foi pago em 2022.",
+  "atomicProposition": "O valor não foi pago em 2022.",
+  "transcriptConfirmed": false,
+  "verdictDraft": {
+    "verdict": "FALSE",
+    "conclusion": "Não deve ser emitido com transcrição duvidosa.",
+    "contradiction": "Inventada",
+    "contradictionEvidenceIds": ["ev-blk-1"]
+  },
+  "sources": [
+    {
+      "id": "src-blk-1",
+      "title": "Documento qualquer",
+      "publisher": "exemplo.org",
+      "url": "https://exemplo.org/doc",
+      "type": "OTHER",
+      "corpusDocumentId": "auxilio-brasil-600-2022"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev-blk-1",
+      "sourceId": "src-blk-1",
+      "relation": "REFUTES",
+      "excerpt": "O pagamento de R$ 600 durante o governo Bolsonaro em 2022 é fato documental.",
+      "explanation": "Mesmo com REFUTES, BLOCKED prevalece sem confirmação da fala."
+    }
+  ],
+  "gaps": [],
+  "expected": {
+    "status": "BLOCKED",
+    "contradictionRequired": false,
+    "notes": "Dúvida crítica de fala/negação → BLOCKED, não FALSE."
+  },
+  "references": []
+}

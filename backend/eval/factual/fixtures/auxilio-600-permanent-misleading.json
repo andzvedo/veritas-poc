@@ -1,0 +1,81 @@
+{
+  "id": "auxilio-600-permanent-misleading",
+  "title": "Piso permanente de R$ 600 atribuído sem base (variante de omissão)",
+  "family": "auxilio-600",
+  "participant": "Flávio Bolsonaro",
+  "originalQuote": "Foi o presidente Bolsonaro que passou para, no mínimo, 600 reais o Bolsa Família.",
+  "normalizedClaim": "O governo Bolsonaro instituiu um piso permanente de R$ 600 correspondente ao benefício atual.",
+  "atomicProposition": "O governo Bolsonaro instituiu por si um piso permanente de R$ 600 do benefício atual.",
+  "transcriptConfirmed": true,
+  "verdictDraft": {
+    "verdict": "MISLEADING",
+    "conclusion": "O valor de R$ 600 existiu em 2022, mas a permanência do piso exigiu novas medidas e outra base legal.",
+    "supportedAspects": [
+      "O Auxílio Brasil chegou a R$ 600 em 2022 durante o governo Bolsonaro."
+    ],
+    "mechanisms": [
+      {
+        "code": "OMITTED_TIME_LIMIT",
+        "explanation": "O aumento de 2022 tinha vigência temporal; continuidade exigiu orçamento e lei posteriores.",
+        "evidenceIds": ["ev-abp-1", "ev-abp-2"]
+      },
+      {
+        "code": "PROGRAM_CONFLATION",
+        "explanation": "A fala usa 'Bolsa Família' para o Auxílio Brasil de 2022 e o piso legal de 2023.",
+        "evidenceIds": ["ev-abp-3"]
+      }
+    ],
+    "limitations": [
+      "Somente avaliar permanência se o contexto sustentar essa interpretação; rótulo editorial revisável."
+    ]
+  },
+  "sources": [
+    {
+      "id": "src-abp-1",
+      "title": "Auxílio Brasil e sucessão legal",
+      "publisher": "corpus-local",
+      "url": "https://www.planalto.gov.br/ccivil_03/_ato2023-2026/2023/lei/l14601.htm",
+      "type": "PRIMARY",
+      "corpusDocumentId": "auxilio-brasil-600-2022"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev-abp-1",
+      "sourceId": "src-abp-1",
+      "relation": "SUPPORTS",
+      "excerpt": "O pagamento de R$ 600 durante o governo Bolsonaro em 2022 é fato documental.",
+      "explanation": "Componente verdadeiro: o valor existiu em 2022."
+    },
+    {
+      "id": "ev-abp-2",
+      "sourceId": "src-abp-1",
+      "relation": "REFUTES",
+      "excerpt": "A Lei 14.601/2023 instituiu o novo Bolsa Família, com complemento para assegurar R$ 600 por família.",
+      "explanation": "O piso permanente tem outra base legal em 2023; não atribuir retroativamente."
+    },
+    {
+      "id": "ev-abp-3",
+      "sourceId": "src-abp-1",
+      "relation": "CONTEXTUALIZES",
+      "excerpt": "O programa Auxílio Brasil substituiu o Bolsa Família em 2021.",
+      "explanation": "Há troca de nome/programa entre períodos."
+    }
+  ],
+  "gaps": [],
+  "expected": {
+    "status": "COMPLETED",
+    "verdict": "MISLEADING",
+    "contradictionRequired": false,
+    "expectedMechanismCodes": ["OMITTED_TIME_LIMIT", "PROGRAM_CONFLATION"],
+    "supportedAspectSubstrings": ["R$ 600"],
+    "notes": "Enganosa só com interpretação de permanência demonstrada no contexto da fixture."
+  },
+  "references": [
+    {
+      "id": "S13",
+      "label": "Lei 14.601/2023",
+      "primary": true
+    }
+  ]
+}

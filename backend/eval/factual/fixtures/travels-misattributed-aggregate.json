@@ -1,0 +1,82 @@
+{
+  "id": "travels-misattributed-aggregate",
+  "title": "R$ 7 bi em viagens atribuídos a Lula e Janja",
+  "family": "travels",
+  "participant": "Flávio Bolsonaro",
+  "originalQuote": "de 7 bilhões de reais que você gastou com a Janja.",
+  "normalizedClaim": "Lula e Janja gastaram R$ 7 bilhões em viagens.",
+  "atomicProposition": "Lula e Janja gastaram cerca de R$ 7 bilhões em viagens (2023–2025).",
+  "transcriptConfirmed": true,
+  "verdictDraft": {
+    "verdict": "FALSE",
+    "conclusion": "Os cerca de R$ 7,14 bilhões são despesas de viagens da estrutura federal, não gastos exclusivos de Lula e Janja.",
+    "contradiction": "O agregado de ~R$ 7,14 bi cobre órgãos e servidores diversos; não o casal presidenciável isoladamente.",
+    "contradictionEvidenceIds": ["ev-tr-1"],
+    "mechanisms": [
+      {
+        "code": "MISATTRIBUTED_AGGREGATE",
+        "explanation": "Usa número agregado real da estrutura federal para acusar um universo muito menor (duas pessoas).",
+        "evidenceIds": ["ev-tr-1", "ev-tr-2"]
+      }
+    ],
+    "limitations": [
+      "Os agregados disponíveis não determinam o gasto exclusivo do casal.",
+      "Consulta ao Portal não foi reproduzida offline; relatos secundários marcados."
+    ]
+  },
+  "sources": [
+    {
+      "id": "src-tr-1",
+      "title": "Relato de despesas federais de viagens 2023–2025",
+      "publisher": "corpus-local",
+      "url": "https://portaldatransparencia.gov.br/",
+      "type": "SECONDARY",
+      "corpusDocumentId": "viagens-federal-2023-2025",
+      "indirect": true,
+      "unreproducedOfficialQuery": true,
+      "notes": "Página inicial do Portal não é consulta já executada; filtro/exportação não reproduzidos neste corpus."
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev-tr-1",
+      "sourceId": "src-tr-1",
+      "relation": "REFUTES",
+      "excerpt": "Despesas com viagens da estrutura do governo federal no período 2023–2025 somam aproximadamente R$ 7,14 bilhões, incluindo passagens e diárias de servidores e autoridades de diversos órgãos. Esse agregado NÃO corresponde a gastos exclusivamente realizados por Lula e Janja.",
+      "explanation": "Troca do sujeito da estatística: estrutura federal ≠ casal."
+    },
+    {
+      "id": "ev-tr-2",
+      "sourceId": "src-tr-1",
+      "relation": "CONTEXTUALIZES",
+      "excerpt": "Despesas da Presidência da República no mesmo período 2023–2025 somam aproximadamente R$ 150,5 milhões, segundo consulta relatada — também NÃO equivalem ao gasto exclusivo do presidente e da primeira-dama.",
+      "explanation": "Mesmo o agregado da Presidência não é gasto exclusivo do casal."
+    }
+  ],
+  "gaps": [
+    "Consulta oficial ao Portal da Transparência com filtros/período/exportação ainda não reproduzida offline."
+  ],
+  "expected": {
+    "status": "COMPLETED",
+    "verdict": "FALSE",
+    "contradictionRequired": true,
+    "expectedMechanismCodes": ["MISATTRIBUTED_AGGREGATE"],
+    "preserveLiteralQuote": true,
+    "editorialAnnotation": "[Lula]",
+    "limitationSubstrings": ["Portal"],
+    "notes": "originalQuote preserva o literal; '[Lula]' só na anotação/normalização."
+  },
+  "references": [
+    {
+      "id": "S15",
+      "label": "Portal da Transparência (entrada)",
+      "url": "https://portaldatransparencia.gov.br/",
+      "primary": false
+    },
+    {
+      "id": "S06",
+      "label": "Checagens secundárias Lupa/Aos Fatos",
+      "primary": false
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "id": "inconclusive-insufficient",
+  "title": "Investigação válida sem prova documental suficiente",
+  "family": "inconclusive",
+  "participant": "Participante A",
+  "originalQuote": "O investimento secreto em energia triplicou no último mês.",
+  "normalizedClaim": "O investimento secreto em energia triplicou no último mês.",
+  "atomicProposition": "O investimento secreto em energia triplicou no último mês.",
+  "transcriptConfirmed": true,
+  "verdictDraft": {
+    "verdict": "INCONCLUSIVE",
+    "conclusion": "As evidências reunidas não permitem confirmar nem refutar a afirmação.",
+    "limitations": [
+      "Nenhum documento inspecionado cobriu a métrica, o período e o universo alegados."
+    ]
+  },
+  "sources": [
+    {
+      "id": "src-inc-1",
+      "title": "Nota genérica sem dados",
+      "publisher": "exemplo.org",
+      "url": "https://exemplo.org/nota-sem-dados",
+      "type": "OTHER",
+      "corpusDocumentId": "auxilio-emergencial-2020",
+      "notes": "Documento fora de escopo — simula investigação válida sem prova pertinente."
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev-inc-1",
+      "sourceId": "src-inc-1",
+      "relation": "CONTEXTUALIZES",
+      "excerpt": "O programa Auxílio Emergencial é distinto do Auxílio Brasil (2021–2022) e do Bolsa Família (2023+).",
+      "explanation": "Trecho irrelevante à alegação de investimento secreto."
+    }
+  ],
+  "gaps": [
+    "Nenhum documento inspecionado cobriu a métrica, o período e o universo alegados."
+  ],
+  "expected": {
+    "status": "COMPLETED",
+    "verdict": "INCONCLUSIVE",
+    "contradictionRequired": false,
+    "limitationSubstrings": ["documento"],
+    "notes": "Inconclusiva documental após investigação válida — não inventar veredito."
+  },
+  "references": []
+}

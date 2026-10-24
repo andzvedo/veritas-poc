@@ -1,0 +1,93 @@
+{
+  "id": "pix-origin-false",
+  "title": "Origem do Pix atribuída ao governo Bolsonaro",
+  "family": "pix-origin",
+  "participant": "Jair Bolsonaro",
+  "originalQuote": "O nosso governo, via Banco Central, teve a ideia de criar o Pix.",
+  "normalizedClaim": "O governo Bolsonaro, via Banco Central, teve a ideia de criar o Pix.",
+  "atomicProposition": "A ideia de criar o Pix surgiu no governo Bolsonaro.",
+  "transcriptConfirmed": true,
+  "verdictDraft": {
+    "verdict": "FALSE",
+    "conclusion": "A concepção do Pix antecede o governo Bolsonaro: o GT de pagamentos instantâneos foi instituído em maio de 2018.",
+    "contradiction": "O Banco Central instituiu o GT-Pagamentos Instantâneos em maio de 2018, antes da posse em janeiro de 2019.",
+    "contradictionEvidenceIds": ["ev-pix-1"],
+    "mechanisms": [
+      {
+        "code": "FALSE_ORIGIN_ATTRIBUTION",
+        "explanation": "Confunde o lançamento em 2020 com a origem documentada em 2018.",
+        "evidenceIds": ["ev-pix-1", "ev-pix-3"]
+      }
+    ],
+    "limitations": [
+      "A evidência não autoriza atribuir a invenção a um único servidor."
+    ]
+  },
+  "sources": [
+    {
+      "id": "src-pix-1",
+      "title": "Portaria e GT de Pagamentos Instantâneos (2018)",
+      "publisher": "bcb.gov.br",
+      "url": "https://www.bcb.gov.br/estabilidadefinanceira/pix",
+      "type": "PRIMARY",
+      "corpusDocumentId": "pix-gt-2018",
+      "indirect": false,
+      "unreproducedOfficialQuery": false
+    },
+    {
+      "id": "src-pix-2",
+      "title": "Checagem Lupa sobre a origem do Pix",
+      "publisher": "agencialupa.org",
+      "url": "https://lupa.uol.com.br/jornalismo/2022/09/13/pix",
+      "type": "SECONDARY",
+      "corpusDocumentId": "pix-gt-2018",
+      "indirect": true,
+      "unreproducedOfficialQuery": false,
+      "notes": "Fonte secundária; não promover a checagem a auditoria da base primária."
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev-pix-1",
+      "sourceId": "src-pix-1",
+      "relation": "REFUTES",
+      "excerpt": "Institui o Grupo de Trabalho de Pagamentos Instantâneos (GT-Pagamentos Instantâneos). A reunião inaugural do GT ocorreu em 10 de maio de 2018, ainda durante o governo Michel Temer.",
+      "explanation": "Prova que o projeto institucional já existia em 2018, antes da posse de 2019."
+    },
+    {
+      "id": "ev-pix-2",
+      "sourceId": "src-pix-1",
+      "relation": "REFUTES",
+      "excerpt": "Documento do BC de 21 de dezembro de 2018 define requisitos fundamentais dos pagamentos instantâneos e próximos passos.",
+      "explanation": "O desenho estava avançado antes de janeiro de 2019."
+    },
+    {
+      "id": "ev-pix-3",
+      "sourceId": "src-pix-1",
+      "relation": "SUPPORTS",
+      "excerpt": "O Pix foi lançado pelo Banco Central em 16 de novembro de 2020.",
+      "explanation": "Confirma o lançamento no mandato sem confundir com autoria da ideia."
+    }
+  ],
+  "gaps": [],
+  "expected": {
+    "status": "COMPLETED",
+    "verdict": "FALSE",
+    "contradictionRequired": true,
+    "expectedMechanismCodes": ["FALSE_ORIGIN_ATTRIBUTION"],
+    "notes": "Rótulo editorial revisável: FALSO sobre origem, não sobre lançamento."
+  },
+  "references": [
+    {
+      "id": "S02",
+      "label": "Documentos do BC sobre GT 2018",
+      "url": "https://www.bcb.gov.br/estabilidadefinanceira/pix",
+      "primary": true
+    },
+    {
+      "id": "S01",
+      "label": "Agência Lupa — checagem da entrevista",
+      "primary": false
+    }
+  ]
+}

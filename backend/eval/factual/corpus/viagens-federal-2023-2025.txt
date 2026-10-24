@@ -1,0 +1,7 @@
+Relatos de consultas ao Portal da Transparência (fontes secundárias de checagem).
+Despesas com viagens da estrutura do governo federal no período 2023–2025 somam aproximadamente R$ 7,14 bilhões, incluindo passagens e diárias de servidores e autoridades de diversos órgãos.
+Esse agregado NÃO corresponde a gastos exclusivamente realizados por Lula e Janja.
+Despesas da Presidência da República no mesmo período 2023–2025 somam aproximadamente R$ 150,5 milhões, segundo consulta relatada — também NÃO equivalem ao gasto exclusivo do presidente e da primeira-dama.
+Gastos exclusivos de Lula e Janja exigiriam recorte documental próprio; não se deve inferir um total preciso a partir dos agregados acima.
+A página inicial do Portal da Transparência é apenas ponto de entrada e NÃO prova, por si, que uma consulta específica foi reproduzida.
+Período de referência desta fixture: 2023–2025 (não misturar com acumulado de 2026).

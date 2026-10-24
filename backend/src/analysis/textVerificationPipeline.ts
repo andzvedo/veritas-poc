@@ -11,6 +11,7 @@ import { extractClaims } from '#/analysis/claimExtraction.js';
 import { evaluateEvidence } from '#/analysis/evidenceEvaluation.js';
 import { retrieveEvidence } from '#/analysis/evidenceRetrieval.js';
 import { generateVerification } from '#/analysis/verdictGeneration.js';
+import { LlmError } from '#/llm/index.js';
 import {
   ResearchError,
   type ResearchProvider,
@@ -210,6 +211,16 @@ export async function investigateClaim(
     if (error instanceof ResearchError) {
       return verificationToLegacyFactCheckData(
         researchFailureToVerification(claim, error, now),
+      );
+    }
+    if (error instanceof LlmError && error.kind === 'QUOTA') {
+      return verificationToLegacyFactCheckData(
+        operationalVerification(
+          claim,
+          'DEFERRED',
+          'Cota do provedor de LLM esgotada; a investigação foi adiada sem emitir veredito factual.',
+          now,
+        ),
       );
     }
     if (error instanceof Error && error.name === 'AbortError') {

@@ -6,6 +6,9 @@
   "engines": {
     "node": ">= 22.11 <= 23"
   },
+  "imports": {
+    "#/*": "./src/*"
+  },
   "scripts": {
     "start": "node build/src/main.js",
     "dev": "node --import tsx src/main.ts",
@@ -19,6 +22,7 @@
     "pretest": "pnpm --filter @veritas/shared build:if-needed",
     "test": "vitest run unit --config __tests__/vitest.config.ts",
     "test:coverage": "vitest run unit --config __tests__/vitest.config.ts --coverage.enabled --coverage.all",
+    "eval:factual": "tsx eval/factual/runner.ts",
     "prettier": "prettier \"{src,__{tests}__}/**/*.{ts,mts}\" --config .prettierrc --write",
     "prettier:check": "prettier \"{src,__{tests}__}/**/*.{ts,mts}\" --config .prettierrc --check",
     "test:watch": "vitest unit"

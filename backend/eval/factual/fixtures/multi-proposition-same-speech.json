@@ -1,0 +1,50 @@
+{
+  "id": "multi-proposition-pix-launch-vs-origin",
+  "title": "Mesma fala, proposição de lançamento (sustentada) — irmã da origem",
+  "family": "multi-proposition",
+  "participant": "Jair Bolsonaro",
+  "originalQuote": "O nosso governo, via Banco Central, teve a ideia de criar o Pix.",
+  "normalizedClaim": "O Pix foi lançado durante o governo Bolsonaro em 2020.",
+  "atomicProposition": "O Pix foi lançado em novembro de 2020, durante o governo Bolsonaro.",
+  "transcriptConfirmed": true,
+  "verdictDraft": {
+    "verdict": "SUPPORTED",
+    "conclusion": "O Pix foi lançado em 16 de novembro de 2020, durante o governo Bolsonaro.",
+    "limitations": [
+      "Proposição distinta da origem/autoria; critérios iguais ao caso pix-origin-false."
+    ]
+  },
+  "sources": [
+    {
+      "id": "src-mpl-1",
+      "title": "Lançamento do Pix",
+      "publisher": "bcb.gov.br",
+      "url": "https://www.bcb.gov.br/estabilidadefinanceira/pix",
+      "type": "PRIMARY",
+      "corpusDocumentId": "pix-gt-2018"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev-mpl-1",
+      "sourceId": "src-mpl-1",
+      "relation": "SUPPORTS",
+      "excerpt": "O Pix foi lançado pelo Banco Central em 16 de novembro de 2020.",
+      "explanation": "Apoio direto à proposição de lançamento (não de origem)."
+    }
+  ],
+  "gaps": [],
+  "expected": {
+    "status": "COMPLETED",
+    "verdict": "SUPPORTED",
+    "contradictionRequired": false,
+    "notes": "Mesmos critérios do participante; proposições independentes sob a mesma citação."
+  },
+  "references": [
+    {
+      "id": "S04",
+      "label": "BC — lançamento 16/11/2020",
+      "primary": true
+    }
+  ]
+}

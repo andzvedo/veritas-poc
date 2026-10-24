@@ -1,0 +1,53 @@
+{
+  "id": "supported-auxilio-emergencial-2020",
+  "title": "68 milhões no Auxílio Emergencial 2020 (controle sustentado)",
+  "family": "supported-control",
+  "participant": "Jair Bolsonaro",
+  "originalQuote": "Nós pagamos o Auxílio Emergencial a 68 milhões de pessoas em 2020.",
+  "normalizedClaim": "O governo pagou o Auxílio Emergencial a cerca de 68 milhões de pessoas em 2020.",
+  "atomicProposition": "Cerca de 68 milhões de pessoas receberam Auxílio Emergencial em 2020.",
+  "transcriptConfirmed": true,
+  "verdictDraft": {
+    "verdict": "SUPPORTED",
+    "conclusion": "Cerca de 68,2 milhões de pessoas receberam Auxílio Emergencial em 2020.",
+    "limitations": [
+      "Indicar ano e programa; sem ressalva política artificial."
+    ]
+  },
+  "sources": [
+    {
+      "id": "src-ae-1",
+      "title": "Beneficiários Auxílio Emergencial 2020",
+      "publisher": "portaldatransparencia.gov.br",
+      "url": "https://portaldatransparencia.gov.br/beneficios/auxilio-emergencial",
+      "type": "PRIMARY",
+      "corpusDocumentId": "auxilio-emergencial-2020",
+      "unreproducedOfficialQuery": true,
+      "notes": "Número espelhado de checagem; consulta oficial marcada como não reproduzida integralmente."
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev-ae-1",
+      "sourceId": "src-ae-1",
+      "relation": "SUPPORTS",
+      "excerpt": "Em 2020, aproximadamente 68,2 milhões de pessoas receberam o Auxílio Emergencial.",
+      "explanation": "Apoio direto no escopo ano/programa da fala."
+    }
+  ],
+  "gaps": [],
+  "expected": {
+    "status": "COMPLETED",
+    "verdict": "SUPPORTED",
+    "contradictionRequired": false,
+    "expectedMechanismCodes": [],
+    "notes": "Controle: não inventar contradição artificial."
+  },
+  "references": [
+    {
+      "id": "S11",
+      "label": "Portal / Lupa — ~68,2 mi em 2020",
+      "primary": true
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+{
+  "id": "divergent-documents-inconclusive",
+  "title": "Documentos divergentes sem resolução por maioria de URLs",
+  "family": "inconclusive",
+  "participant": "Participante D",
+  "originalQuote": "O índice oficial caiu 10% no trimestre.",
+  "normalizedClaim": "O índice oficial caiu 10% no trimestre de referência.",
+  "atomicProposition": "O índice oficial caiu 10% no trimestre de referência.",
+  "transcriptConfirmed": true,
+  "verdictDraft": {
+    "verdict": "INCONCLUSIVE",
+    "conclusion": "As fontes divergem quanto à série e ao método; não é possível resolver por contagem de URLs.",
+    "limitations": [
+      "Documentos divergentes sobre a série/método; maioria simples de URLs não decide."
+    ]
+  },
+  "sources": [
+    {
+      "id": "src-div-1",
+      "title": "Série A",
+      "publisher": "agencia-a.org",
+      "url": "https://agencia-a.org/serie",
+      "type": "SECONDARY",
+      "corpusDocumentId": "auxilio-emergencial-2020",
+      "indirect": true
+    },
+    {
+      "id": "src-div-2",
+      "title": "Série B",
+      "publisher": "agencia-b.org",
+      "url": "https://agencia-b.org/serie",
+      "type": "SECONDARY",
+      "corpusDocumentId": "auxilio-brasil-600-2022",
+      "indirect": true
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev-div-1",
+      "sourceId": "src-div-1",
+      "relation": "SUPPORTS",
+      "excerpt": "Em 2020, aproximadamente 68,2 milhões de pessoas receberam o Auxílio Emergencial.",
+      "explanation": "Trecho de série A — não decide o índice alegado."
+    },
+    {
+      "id": "ev-div-2",
+      "sourceId": "src-div-2",
+      "relation": "REFUTES",
+      "excerpt": "A proposta orçamentária original de 2023 previa benefício médio próximo de R$ 405, embora houvesse intenção declarada de manter R$ 600.",
+      "explanation": "Trecho de série B — divergente e fora de método comparável."
+    }
+  ],
+  "gaps": [
+    "Documentos divergentes sobre a série/método; maioria simples de URLs não decide."
+  ],
+  "expected": {
+    "status": "COMPLETED",
+    "verdict": "INCONCLUSIVE",
+    "contradictionRequired": false,
+    "limitationSubstrings": ["diverg"],
+    "notes": "Não resolver divergência por contagem de URLs."
+  },
+  "references": []
+}
