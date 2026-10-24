@@ -652,6 +652,46 @@ describe('LiveSession draining and loss visibility', () => {
     expect(speakerRegistry.getMappings()).toEqual([]);
     await session.end('user');
   });
+
+  it('aligns different transcript segments with their diarized turns', async () => {
+    const diarization: DiarizationProvider = {
+      name: 'fake-diarization',
+      isAvailable: () => Promise.resolve(true),
+      identify: () =>
+        Promise.resolve<SpeakerObservation[]>([
+          { speakerLabel: 'SPEAKER_A', startMs: 0, endMs: 1000 },
+          { speakerLabel: 'SPEAKER_B', startMs: 1000, endMs: 2000 },
+        ]),
+    };
+    const provider = new ScriptedTranscriptionProvider(() =>
+      Promise.resolve({
+        text: 'fala A fala B',
+        segments: [
+          { text: 'fala A', startMs: 100, endMs: 900 },
+          { text: 'fala B', startMs: 1100, endMs: 1900 },
+        ],
+      }),
+    );
+    const harness = createHarness({
+      transcription: provider,
+      diarization,
+      speakerRegistry: new SpeakerRegistry(),
+    });
+    harness.session.start();
+    for (let index = 0; index < 2; index++) {
+      const chunk = makeChunk(index, index * CHUNK_SAMPLES);
+      harness.session.handleAudioChunk(chunk.meta, chunk.pcm);
+    }
+    await flushAsync();
+
+    const attributed = harness.transcripts.map((event) => [
+      event.segment.text,
+      event.segment.speakerId,
+    ]);
+    expect(attributed).toContainEqual(['fala A', 'speaker-1']);
+    expect(attributed).toContainEqual(['fala B', 'speaker-2']);
+    await harness.session.end('user');
+  });
 });
 
 describe('LiveSession resource limits', () => {

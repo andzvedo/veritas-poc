@@ -37,7 +37,9 @@ import {
 import type {
   DiarizationProvider,
   SpeakerRegistry,
+  SpeakerObservation,
 } from './speakerIdentification.js';
+import { resolveSpeakerLabelForInterval } from './speakerIdentification.js';
 import {
   isAbortError,
   TranscriptionUnavailableError,
@@ -828,7 +830,7 @@ export class LiveSession {
 
     const windowStartMs = samplesToMs(job.startSample);
     const windowEndMs = windowStartMs + durationMs;
-    const speakerId = await this.identifySpeaker(
+    const speakerObservations = await this.identifySpeaker(
       job,
       windowStartMs,
       windowEndMs,
@@ -853,7 +855,7 @@ export class LiveSession {
               ? {}
               : { confidence: result.confidence }),
           },
-          speakerId === undefined ? {} : { speakerId },
+          {},
         ),
       );
       return;
@@ -861,6 +863,11 @@ export class LiveSession {
 
     const segmentationStarted = this.now();
     for (const segment of segments) {
+      const speakerId = this.resolveSpeakerForSegment(
+        speakerObservations,
+        segment,
+        durationMs,
+      );
       const update = this.segmenter.pushWindow(
         {
           text: segment.text,
@@ -880,11 +887,11 @@ export class LiveSession {
     startMs: number,
     endMs: number,
     signal: AbortSignal,
-  ): Promise<string | undefined> {
+  ): Promise<SpeakerObservation[]> {
     const diarization = this.diarization;
     const registry = this.speakerRegistry;
     if (diarization === undefined || registry === undefined) {
-      return undefined;
+      return [];
     }
     try {
       this.diarizationAvailable ??= diarization.isAvailable();
@@ -893,40 +900,57 @@ export class LiveSession {
         available = await this.diarizationAvailable;
       } catch {
         this.diarizationAvailable = undefined;
-        return undefined;
+        return [];
       }
       if (!available) {
-        return undefined;
+        return [];
       }
       const started = this.now();
       const observations = await diarization.identify(Buffer.from(job.pcm), {
+        sessionId: this.sessionId,
         startMs,
         endMs,
         signal,
       });
       this.emitMetric('diarization', this.now() - started);
       if (observations.length === 0) {
-        return undefined;
+        return [];
       }
-      const labels = new Set(
-        observations.map((observation) => observation.speakerLabel),
-      );
-      if (labels.size !== 1) {
-        // Simultaneous speakers: authorship is not attributable for this window.
-        this.emitMetric('diarization_overlap', 0);
-        return undefined;
-      }
-      const first = observations.at(0);
-      return first === undefined
-        ? undefined
-        : registry.observe(first.speakerLabel);
+      return observations;
     } catch (error) {
       if (isAbortError(error) || signal.aborted) {
-        return undefined;
+        return [];
       }
       this.emitMetric('diarization_error', 0);
+      return [];
+    }
+  }
+
+  private resolveSpeakerForSegment(
+    observations: readonly SpeakerObservation[],
+    segment: TranscribedSegment,
+    windowDurationMs: number,
+  ): string | undefined {
+    const registry = this.speakerRegistry;
+    if (registry === undefined) {
       return undefined;
     }
+    const label = resolveSpeakerLabelForInterval(
+      observations,
+      segment.startMs,
+      segment.endMs,
+      windowDurationMs,
+    );
+    if (label === undefined) {
+      if (
+        new Set(observations.map((observation) => observation.speakerLabel))
+          .size > 1
+      ) {
+        this.emitMetric('diarization_overlap', 0);
+      }
+      return undefined;
+    }
+    return registry.observe(label);
   }
 
   private publishSegmentation(update: SpeechWindowResult): void {

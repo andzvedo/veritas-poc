@@ -20,9 +20,18 @@ import { pcm16ToWav, samplesToMs } from './wav.js';
 export type SpeakerObservation = {
   speakerLabel: string;
   confidence?: number;
+  /** Start of this speaker turn relative to the submitted PCM window. */
+  startMs?: number;
+  /** End of this speaker turn relative to the submitted PCM window. */
+  endMs?: number;
 };
 
+/** Provisional gate; LIVE-000/034 must calibrate it on the reserved corpus. */
+export const DEFAULT_SPEAKER_MIN_CONFIDENCE = 0.75;
+
 export type DiarizationOptions = {
+  /** Stable live session id; providers should keep speaker labels stable for it. */
+  sessionId?: string;
   /** Media time of the first sample in `pcm`, in milliseconds. */
   startMs: number;
   /** Media time of the last sample in `pcm`, in milliseconds. */
@@ -173,13 +182,15 @@ const readPositiveInt = (raw: string | undefined, fallback: number): number => {
 /**
  * Pure parser for a pyannote HTTP response.
  *
- * Tolerated shapes: `[{speaker|label, confidence|score}]`,
- * `{segments: [...]}` and `{diarization: [...]}`. Duplicate labels keep the
- * first-seen order and the highest confidence. Unknown shapes yield `[]`
- * rather than a guess.
+ * Tolerated shapes: `[{speaker|label, confidence|score, start, end}]`,
+ * `{segments: [...]}` and `{diarization: [...]}`. Time bounds may be
+ * `start_ms`/`end_ms` or `start`/`end` in seconds. Timed turns are preserved;
+ * untimed duplicate labels are collapsed at their highest confidence.
+ * Unknown shapes yield `[]` rather than a guess.
  */
 export function parsePyannoteResponse(payload: unknown): SpeakerObservation[] {
   const byLabel = new Map<string, SpeakerObservation>();
+  const timed: SpeakerObservation[] = [];
   for (const item of extractSegmentList(payload)) {
     if (!isRecord(item)) {
       continue;
@@ -193,6 +204,17 @@ export function parsePyannoteResponse(payload: unknown): SpeakerObservation[] {
     }
     const confidence =
       readConfidence(item['confidence']) ?? readConfidence(item['score']);
+    const startMs = readTimeMs(item, 'start_ms', 'start');
+    const endMs = readTimeMs(item, 'end_ms', 'end');
+    if (startMs !== undefined && endMs !== undefined && endMs > startMs) {
+      timed.push({
+        speakerLabel: label,
+        ...(confidence === undefined ? {} : { confidence }),
+        startMs,
+        endMs,
+      });
+      continue;
+    }
     const existing = byLabel.get(label);
     if (existing === undefined) {
       byLabel.set(
@@ -210,7 +232,105 @@ export function parsePyannoteResponse(payload: unknown): SpeakerObservation[] {
       existing.confidence = confidence;
     }
   }
-  return [...byLabel.values()];
+  return [...timed, ...byLabel.values()];
+}
+
+const readTimeMs = (
+  item: Record<string, unknown>,
+  millisecondsKey: string,
+  secondsKey: string,
+): number | undefined => {
+  const milliseconds = item[millisecondsKey];
+  if (typeof milliseconds === 'number' && Number.isFinite(milliseconds)) {
+    return Math.max(0, milliseconds);
+  }
+  const seconds = item[secondsKey];
+  if (typeof seconds === 'number' && Number.isFinite(seconds)) {
+    return Math.max(0, seconds * 1000);
+  }
+  return undefined;
+};
+
+/**
+ * Resolves a transcript interval only when one diarized speaker clearly owns
+ * it. Any untimed multi-speaker result, material overlap, or weak coverage is
+ * intentionally left unattributed.
+ */
+export function resolveSpeakerLabelForInterval(
+  observations: readonly SpeakerObservation[],
+  startMs: number,
+  endMs: number,
+  windowDurationMs: number,
+): string | undefined {
+  const duration = endMs - startMs;
+  if (duration <= 0 || observations.length === 0) {
+    return undefined;
+  }
+  const uniqueLabels = new Set(
+    observations.map(({ speakerLabel }) => speakerLabel),
+  );
+  const intervalsByLabel = new Map<string, Array<[number, number]>>();
+  for (const observation of observations) {
+    if (
+      observation.confidence !== undefined &&
+      observation.confidence < DEFAULT_SPEAKER_MIN_CONFIDENCE
+    ) {
+      continue;
+    }
+    const hasRange =
+      observation.startMs !== undefined && observation.endMs !== undefined;
+    if (!hasRange && uniqueLabels.size !== 1) {
+      return undefined;
+    }
+    const from = hasRange ? observation.startMs! : 0;
+    const to = hasRange ? observation.endMs! : windowDurationMs;
+    const clippedFrom = Math.max(startMs, from);
+    const clippedTo = Math.min(endMs, to);
+    if (clippedTo > clippedFrom) {
+      const intervals = intervalsByLabel.get(observation.speakerLabel) ?? [];
+      intervals.push([clippedFrom, clippedTo]);
+      intervalsByLabel.set(observation.speakerLabel, intervals);
+    }
+  }
+  const coverageByLabel = [...intervalsByLabel.entries()].map(
+    ([label, intervals]) => {
+      intervals.sort((left, right) => left[0] - right[0]);
+      let coveredMs = 0;
+      let rangeStart = -1;
+      let rangeEnd = -1;
+      for (const [from, to] of intervals) {
+        if (rangeStart < 0) {
+          rangeStart = from;
+          rangeEnd = to;
+        } else if (from <= rangeEnd) {
+          rangeEnd = Math.max(rangeEnd, to);
+        } else {
+          coveredMs += rangeEnd - rangeStart;
+          rangeStart = from;
+          rangeEnd = to;
+        }
+      }
+      if (rangeStart >= 0) {
+        coveredMs += rangeEnd - rangeStart;
+      }
+      return [label, coveredMs] as const;
+    },
+  );
+  const ranked = coverageByLabel.sort((left, right) => right[1] - left[1]);
+  const best = ranked.at(0);
+  if (best === undefined) {
+    return undefined;
+  }
+  const coverage = best[1] / duration;
+  const secondCoverage = (ranked[1]?.[1] ?? 0) / duration;
+  if (
+    coverage < 0.6 ||
+    secondCoverage >= 0.2 ||
+    coverage - secondCoverage < 0.2
+  ) {
+    return undefined;
+  }
+  return best[0];
 }
 
 const extractSegmentList = (payload: unknown): unknown[] => {
@@ -235,7 +355,10 @@ const extractSegmentList = (payload: unknown): unknown[] => {
  * Not bundled and not assumed installed: without `PYANNOTE_URL` the adapter is
  * unavailable. Audio is posted as WAV to the operator-provided endpoint — it
  * never leaves the local network unless the operator configured it that way.
- * Only session-local windows are sent; nothing is logged.
+ * Only session-local windows are sent; nothing is logged. The configured
+ * service must use the supplied session id for stable speaker clusters and
+ * return turn timestamps relative to the submitted window when continuity is
+ * required.
  */
 export class PyannoteHttpAdapter implements DiarizationProvider {
   readonly name = 'pyannote-http';
@@ -334,6 +457,9 @@ export class PyannoteHttpAdapter implements DiarizationProvider {
       end_ms: String(Math.max(0, Math.round(options.endMs))),
       sample_rate: '16000',
     });
+    if (options.sessionId !== undefined) {
+      params.set('session_id', options.sessionId);
+    }
     return `${url}${separator}${params.toString()}`;
   }
 

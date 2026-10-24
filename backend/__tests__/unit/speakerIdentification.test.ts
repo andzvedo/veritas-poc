@@ -11,6 +11,7 @@ import {
   UnknownSpeakerError,
   UnknownSpeakerProvider,
   parsePyannoteResponse,
+  resolveSpeakerLabelForInterval,
   windowDurationMs,
   type DiarizationProvider,
   type FetchLike,
@@ -69,6 +70,83 @@ describe('parsePyannoteResponse', () => {
     expect(parsePyannoteResponse('nope')).toEqual([]);
     expect(parsePyannoteResponse([{ confidence: 0.5 }])).toEqual([]);
     expect(parsePyannoteResponse([{ speaker: '   ' }])).toEqual([]);
+  });
+
+  it('keeps turn timestamps and converts seconds to window-relative milliseconds', () => {
+    expect(
+      parsePyannoteResponse({
+        segments: [
+          { speaker: 'A', start: 0.25, end: 1.5 },
+          { speaker: 'B', start_ms: 1500, end_ms: 2250 },
+        ],
+      }),
+    ).toEqual([
+      { speakerLabel: 'A', startMs: 250, endMs: 1500 },
+      { speakerLabel: 'B', startMs: 1500, endMs: 2250 },
+    ]);
+  });
+});
+
+describe('resolveSpeakerLabelForInterval', () => {
+  it('attributes each transcript segment from the matching diarization turn', () => {
+    const observations = [
+      { speakerLabel: 'A', startMs: 0, endMs: 3000 },
+      { speakerLabel: 'B', startMs: 3000, endMs: 6000 },
+    ];
+
+    expect(resolveSpeakerLabelForInterval(observations, 500, 2500, 6000)).toBe(
+      'A',
+    );
+    expect(resolveSpeakerLabelForInterval(observations, 3500, 5500, 6000)).toBe(
+      'B',
+    );
+  });
+
+  it('keeps mixed, overlapping, and weakly covered speech unattributed', () => {
+    expect(
+      resolveSpeakerLabelForInterval(
+        [
+          { speakerLabel: 'A', startMs: 0, endMs: 1000 },
+          { speakerLabel: 'B', startMs: 900, endMs: 2000 },
+        ],
+        800,
+        1200,
+        2000,
+      ),
+    ).toBeUndefined();
+    expect(
+      resolveSpeakerLabelForInterval(
+        [
+          { speakerLabel: 'A', startMs: 0, endMs: 500 },
+          { speakerLabel: 'B', startMs: 500, endMs: 1000 },
+        ],
+        250,
+        750,
+        1000,
+      ),
+    ).toBeUndefined();
+  });
+
+  it('does not infer labels from untimed multi-speaker responses', () => {
+    expect(
+      resolveSpeakerLabelForInterval(
+        [{ speakerLabel: 'A' }, { speakerLabel: 'B' }],
+        0,
+        1000,
+        1000,
+      ),
+    ).toBeUndefined();
+  });
+
+  it('keeps explicitly low-confidence diarization unknown', () => {
+    expect(
+      resolveSpeakerLabelForInterval(
+        [{ speakerLabel: 'A', confidence: 0.5, startMs: 0, endMs: 1000 }],
+        100,
+        900,
+        1000,
+      ),
+    ).toBeUndefined();
   });
 });
 
@@ -132,6 +210,7 @@ describe('PyannoteHttpAdapter', () => {
     });
 
     const observations = await adapter.identify(pcm(), {
+      sessionId: 'session-1',
       startMs: 2000,
       endMs: 6000,
     });
@@ -145,6 +224,7 @@ describe('PyannoteHttpAdapter', () => {
     expect(request?.url).toContain('start_ms=2000');
     expect(request?.url).toContain('end_ms=6000');
     expect(request?.url).toContain('sample_rate=16000');
+    expect(request?.url).toContain('session_id=session-1');
     expect(request?.init.headers).toMatchObject({
       'content-type': 'audio/wav',
     });

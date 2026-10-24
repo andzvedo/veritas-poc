@@ -30,3 +30,14 @@ Os fixtures são texto com rótulos de diarização roteirizados. Eles medem as 
 2. Marque `diarizationProvenance: "RECORDED"` e `media.kind: "REAL_DEBATE"`, e anote `refSpeaker` manualmente.
 3. Opcionalmente, grave as saídas reais do extrator em `extraction` (`extractionProvenance: "RECORDED"`).
 4. Rode `eval:speakers`. Os gates de prontidão só passam com amostra suficiente.
+
+O adaptador live aceita turnos com `speaker`/`label`, `start`/`end` em segundos
+ou `start_ms`/`end_ms` em milissegundos, relativos à janela WAV submetida.
+O serviço configurado por `PYANNOTE_URL` também recebe `session_id`; para IDs
+contínuos entre janelas, ele precisa manter clusters acústicos estáveis dentro
+da sessão. O Veritas atribui cada segmento transcrito somente quando um turno
+cobre claramente seu intervalo; fala mista, sobreposta, sem timestamps e sem
+cobertura suficiente permanece sem autoria. Confiança retornada abaixo de
+0,75 também fica desconhecida; esse limiar é provisório e precisa ser calibrado
+no corpus reservado em LIVE-000/034 antes de declarar autoria automática pronta.
+O nome do participante continua exigindo associação manual confirmada.

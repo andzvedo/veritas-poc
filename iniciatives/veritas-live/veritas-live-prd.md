@@ -25,7 +25,7 @@ O produto deve identificar quem fez cada afirmação, confrontá-la com evidênc
 
 | Capacidade | Piloto local experimental | MVP completo |
 |---|---|---|
-| Captura | Uma aba, navegador/sistema/player qualificados | Mesma combinação documentada, com tratamento de falhas |
+| Captura | Microfone e ambiente de áudio qualificados | Mesma combinação documentada, com tratamento de falhas |
 | Transcrição e extração | Automáticas; trechos críticos incertos ficam bloqueados | Automáticas, avaliadas em corpus e ensaio prolongado |
 | Autoria | Pode permanecer desconhecida; associação manual explícita | Diarização com continuidade de IDs e associação inicial confirmada; dúvidas sinalizadas |
 | Pesquisa e resultado | Motor documental compartilhado com Texto | Mesmo motor, com qualidade e capacidade mensuradas |
@@ -42,7 +42,7 @@ Permitir que o usuário:
 
 1. Acesse o Veritas e escolha **Áudio ao vivo**.
 2. Clique em **Iniciar escuta**.
-3. Selecione uma aba do navegador e autorize a captura de áudio.
+3. Selecione o microfone que capta o debate e autorize a captura de áudio.
 4. Acompanhe a transcrição e as verificações automaticamente.
 5. Explore as evidências relacionadas a cada afirmação.
 
@@ -55,7 +55,7 @@ Após a autorização inicial e, no MVP completo, a confirmação inicial da ass
 | Funcionalidade | Prioridade |
 |---|---|
 | Preservar verificação manual por texto | P0 |
-| Capturar áudio de aba do navegador | P0 |
+| Capturar áudio pelo microfone | P0 |
 | Transcrever áudio continuamente | P0 |
 | Detectar afirmações verificáveis | P0 |
 | Evitar claims duplicadas | P0 |
@@ -90,8 +90,8 @@ O modo Texto mantém a experiência atual.
 ### Iniciar escuta
 
 1. O usuário clica em *Iniciar escuta*.
-2. O navegador solicita a escolha da aba.
-3. O usuário autoriza o compartilhamento de áudio.
+2. O usuário seleciona o dispositivo de entrada.
+3. O navegador solicita e recebe autorização para capturar áudio.
 4. O Veritas valida a captura.
 5. A transcrição começa automaticamente.
 
@@ -105,7 +105,7 @@ Desktop: transcrição e verificações lado a lado. Resultados são agrupados p
 
 A interface mostra captura, transcrição e pesquisa separadamente, incluindo atraso, fila, saturação e consumo. Autoria desconhecida, falha técnica e falta de evidência têm apresentações distintas.
 
-Mobile responsivo e acompanhamento em outro dispositivo são P1. O protótipo HTML é referência de apresentação, com dados simulados; opções de microfone não representam funcionalidade do piloto nem fonte autorizada pelo escopo.
+O piloto atual usa o microfone (`getUserMedia`) para captar o áudio reproduzido no ambiente. A qualidade depende do posicionamento, ruído, eco e configuração do dispositivo, e precisa ser qualificada em LIVE-000. Captura direta da aba do navegador não está implementada. Mobile responsivo e acompanhamento em outro dispositivo são P1. O protótipo HTML é referência de apresentação, com dados simulados.
 
 ## 5. Arquitetura técnica
 
@@ -127,7 +127,7 @@ A transcrição deve operar independentemente das pesquisas.
 | Camada | Tecnologia |
 |---|---|
 | Frontend | Next.js 15, React 19 |
-| Captura | `getDisplayMedia` com vídeo exigido pela API, áudio validado, sem envio de vídeo |
+| Captura | `getUserMedia` pelo microfone, dispositivo selecionável, áudio validado |
 | Transcrição | Adaptador Whisper.cpp local, sujeito à qualificação de hardware/modelo |
 | Detecção de voz | VAD local |
 | Identificação de participantes | Adaptador acústico local, continuidade entre blocos e associação inicial confirmada |
@@ -280,16 +280,16 @@ Cada fase possui critérios próprios de conclusão. A fase seguinte não deve d
 
 **1.1. Audio Capture**
 
-Criar `frontend/src/lib/audio/tabCapture.ts`.
+Usar `frontend/src/lib/audio/micCapture.ts`.
 
 Responsabilidades:
 
-- Solicitar permissão com `getDisplayMedia()`.
-- Capturar áudio da aba selecionada.
+- Solicitar permissão com `getUserMedia()` após ação explícita do usuário.
+- Permitir selecionar o dispositivo de entrada disponível.
 - Confirmar presença de trilha de áudio.
-- Detectar interrupção do compartilhamento.
+- Detectar remoção do microfone ou interrupção da trilha.
 - Encerrar trilhas quando a sessão terminar.
-- Tratar navegadores incompatíveis.
+- Tratar permissões negadas e navegadores incompatíveis.
 
 **1.2. Audio Streaming**
 
@@ -370,7 +370,7 @@ Componentes:
 
 - Ambiente Node.js existente.
 - Instalação e configuração do Whisper.cpp.
-- Navegador com suporte à captura de áudio da aba.
+- Navegador com suporte a `getUserMedia` e microfone autorizado.
 - Máquina com recursos suficientes para a transcrição local.
 
 **Resultado esperado:** Veritas escuta e transcreve, mas ainda não verifica automaticamente o conteúdo.
@@ -1009,7 +1009,7 @@ O sucesso não deve ser medido apenas pela quantidade de afirmações verificada
 
 ## 15. Referências técnicas e registro da revisão
 
-- [Captura de tela/aba e limitações de áudio](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getDisplayMedia).
+- [Captura de áudio pelo microfone](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia).
 - [Whisper.cpp: exemplo de streaming](https://raw.githubusercontent.com/ggml-org/whisper.cpp/master/examples/stream/README.md) e [servidor local](https://raw.githubusercontent.com/ggml-org/whisper.cpp/master/examples/server/README.md).
 - [Diarização local pyannote Community-1: instalação, condições e limites](https://huggingface.co/pyannote/speaker-diarization-community-1). Motor e dependências são propostas sujeitas ao LIVE-000; disponibilidade de token/modelo não é presumida.
 - [Socket.IO: entrega, ACK e replay](https://socket.io/docs/v4/delivery-guarantees/).
