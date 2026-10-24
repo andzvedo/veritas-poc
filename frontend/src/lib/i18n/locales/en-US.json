@@ -349,16 +349,16 @@
     },
     "status": {
       "idle": "Ready to listen",
-      "requesting_permission": "Requesting tab share…",
+      "requesting_permission": "Requesting microphone access…",
       "connecting": "Connecting session…",
       "listening": "Listening",
       "paused": "Paused",
       "ending": "Ending and draining queue…",
       "ended": "Session ended",
       "reconnecting": "Reconnecting…",
-      "permission_error": "Capture permission denied",
-      "unsupported": "Browser cannot capture tab audio",
-      "no_audio": "No audio on the shared tab",
+      "permission_error": "Microphone access denied",
+      "unsupported": "Microphone unavailable in this browser",
+      "no_audio": "No audio from the microphone",
       "connection_error": "Connection failure",
       "session_error": "Live session error"
     },
@@ -374,12 +374,18 @@
     },
     "setup": {
       "eyebrow": "Veritas Live",
-      "title": "Automatic tab listening",
-      "description": "After your click, the browser will ask to share a tab with audio. Capture video is never sent.",
-      "sourceLabel": "Audio source",
-      "sourceTab": "Browser tab (desktop)",
-      "sourceHint": "Enable “Share tab audio” in the browser picker. Microphone and mobile capture are out of this pilot.",
-      "privacyNote": "No video is transmitted. Audio is only processed while the session is active and with your consent."
+      "title": "Listen through the microphone",
+      "description": "After you click, the browser will ask for microphone access. Veritas listens to the room where the conversation happens.",
+      "sourceLabel": "Microphone",
+      "sourceMic": "Microphone",
+      "defaultMic": "System default microphone",
+      "unnamedMic": "Microphone {{index}}",
+      "showDevices": "Show available microphones",
+      "loadingDevices": "Looking for microphones…",
+      "consentLabel": "I confirm the people in the room know the conversation will be recorded by the microphone and sent to Veritas for transcription and fact-checking.",
+      "consentRequired": "Check the consent box to start",
+      "sourceHint": "Keep the microphone close to the speakers. If the debate plays on this computer, use the speakers (not headphones).",
+      "privacyNote": "Only microphone audio is sent, and only while the session is active."
     },
     "transcript": {
       "title": "Transcript",
@@ -412,12 +418,21 @@
     "workspace": {
       "eyebrow": "Veritas / Automatic listening",
       "title": "Live accompaniment",
-      "intro": "Progressive transcript alongside verifications. Capture a tab with audio; Text mode remains available at entry.",
+      "intro": "Progressive transcript alongside verifications. Audio comes from the microphone; Text mode remains available at entry.",
       "resultsTitle": "Verifications",
       "resultsEmpty": "Detected claims will appear here.",
       "claimCount": "{{count}} claims",
       "claimCountOne": "{{count}} claim"
+    },
+    "micErrors": {
+      "UNSUPPORTED": "This browser can't access the microphone. Use a recent version of Chrome, Edge, Safari or Firefox.",
+      "INSECURE_CONTEXT": "The microphone only works on secure pages. Open Veritas on https:// or http://localhost.",
+      "PERMISSION_DENIED": "Microphone access was denied. Allow the microphone in the site permissions (icon next to the address bar) and try again.",
+      "NO_DEVICE": "No microphone found. Connect a microphone and try again.",
+      "DEVICE_IN_USE": "The microphone is in use by another app or blocked by the system. Close the other app and try again.",
+      "DEVICE_DISCONNECTED": "The microphone was disconnected. Listening has ended; reconnect it and start again.",
+      "NO_AUDIO_TRACK": "The microphone sent no audio. Try another microphone.",
+      "CAPTURE_FAILED": "Could not access the microphone."
     }
   }
 }
-

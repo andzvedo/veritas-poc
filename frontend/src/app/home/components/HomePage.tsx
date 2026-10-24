@@ -9,7 +9,9 @@ import HeroSection from './HeroSection';
 import VerificationForm from './VerificationForm';
 import HomePageToast from './HomePageToast';
 import ModeToggle from '@/app/live/components/ModeToggle';
-import LiveSetupPanel from '@/app/live/components/LiveSetupPanel';
+import LiveSetupPanel, {
+  type LiveStartRequest,
+} from '@/app/live/components/LiveSetupPanel';
 import LiveAudioControls from '@/app/live/components/LiveAudioControls';
 import { factCheckService } from '@/lib/services/factCheckService';
 import { useFactCheckStore } from '@/lib/store/factCheckStore';
@@ -93,7 +95,7 @@ const HomePage: React.FC<HomePageProps> = ({ className, router: propRouter }) =>
     }
   }, [verificationState.status, verificationState.error, router, inputMode]);
 
-  const handleStartLive = useCallback(async () => {
+  const handleStartLive = useCallback(async ({ deviceId }: LiveStartRequest) => {
     setStartingLive(true);
     try {
       await liveSessionController.start({
@@ -101,6 +103,8 @@ const HomePage: React.FC<HomePageProps> = ({ className, router: propRouter }) =>
           google: apiKeys?.google,
           tavily: apiKeys?.tavily,
         },
+        deviceId: deviceId || undefined,
+        micMessages: t.live.micErrors,
       });
       router.push('/live');
     } catch (error) {
@@ -117,7 +121,7 @@ const HomePage: React.FC<HomePageProps> = ({ className, router: propRouter }) =>
     } finally {
       setStartingLive(false);
     }
-  }, [apiKeys?.google, apiKeys?.tavily, router, t.errors.internalError]);
+  }, [apiKeys?.google, apiKeys?.tavily, router, t.errors.internalError, t.live.micErrors]);
 
   // Mantém a conexão entre páginas para não interromper o stream de resultados
   // (não desconectar no unmount)

@@ -235,12 +235,13 @@ export function deriveLiveStatusView(input: DeriveLiveStatusInput): LiveStatusVi
   }
 }
 
-/** Maps TabCaptureError / AudioChunkerError codes to capture feedback. */
+/** Maps MicCaptureError / AudioChunkerError codes to capture feedback. */
 export function captureFeedbackFromErrorCode(
   code: string,
 ): LiveCaptureFeedback {
   switch (code) {
     case 'UNSUPPORTED':
+    case 'INSECURE_CONTEXT':
     case 'UNSUPPORTED_AUDIO_CONTEXT':
     case 'UNSUPPORTED_AUDIO_WORKLET':
       return 'unsupported';
@@ -248,13 +249,16 @@ export function captureFeedbackFromErrorCode(
     case 'ABORTED':
       return 'permission_error';
     case 'NO_AUDIO_TRACK':
+    case 'NO_DEVICE':
+    case 'DEVICE_IN_USE':
+    case 'DEVICE_DISCONNECTED':
       return 'no_audio';
     default:
       return 'connection_error';
   }
 }
 
-export function mapTabCaptureErrorMessage(
+export function mapCaptureErrorMessage(
   code: string,
   fallback: string,
 ): { feedback: LiveCaptureFeedback; messageKey: string; fallback: string } {

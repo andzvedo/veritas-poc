@@ -3,7 +3,7 @@
  * Audio chunking and streaming for Veritas Live (LIVE-003).
  *
  * Responsibilities:
- * - capture the tab audio through an `AudioWorklet` without routing it to the
+ * - capture the microphone audio through an `AudioWorklet` without routing it to the
  *   speakers (no echo: the processor never writes to its output);
  * - convert it to mono 16 kHz `pcm16le` chunks of ~100 ms with an explicit
  *   sample clock (`startSample`, `samples`);
@@ -15,7 +15,7 @@
  * Deliberate limitations:
  * - No `ScriptProcessorNode` fallback: if `AudioWorklet` is unavailable the
  *   caller gets a typed error and a clear UI message.
- * - The `MediaStream` tracks are **not** stopped here; `TabAudioCapture` owns
+ * - The `MediaStream` tracks are **not** stopped here; `AudioCapture` (micCapture) owns
  *   them (LIVE-002).
  * - Browser APIs are only touched when a method is called, so importing this
  *   module outside a browser is safe.
@@ -182,7 +182,7 @@ async function closeContextQuietly(context: AudioContext): Promise<void> {
 }
 
 /**
- * Captures a tab stream and emits 16 kHz PCM chunks with flow control.
+ * Captures a microphone stream and emits 16 kHz PCM chunks with flow control.
  *
  * One instance == one capture session. Call `start(stream)` from a user gesture
  * handler (the AudioContext needs it), and `stop()` before dropping the
@@ -277,8 +277,8 @@ export class AudioChunker {
   /**
    * Starts the capture pipeline for `stream`.
    *
-   * Must be called from a user gesture (same click that authorized the tab
-   * share). Throws `AudioChunkerError` with a stable `code` when the browser
+   * Must be called from a user gesture (same click that authorized the
+   * microphone). Throws `AudioChunkerError` with a stable `code` when the browser
    * cannot run an AudioWorklet — there is no silent `ScriptProcessor` fallback.
    */
   async start(
@@ -353,7 +353,7 @@ export class AudioChunker {
       await closeContextQuietly(context);
       throw new AudioChunkerError(
         'UNSUPPORTED_AUDIO_WORKLET',
-        'Este navegador não suporta AudioWorklet, necessário para processar o áudio da aba.',
+        'Este navegador não suporta AudioWorklet, necessário para processar o áudio do microfone.',
       );
     }
 
@@ -403,8 +403,7 @@ export class AudioChunker {
 
     let sourceNode: MediaStreamAudioSourceNode;
     try {
-      // Only the audio track enters the graph: the video track required by
-      // getDisplayMedia never leaves TabAudioCapture.
+      // Only the audio track enters the graph.
       sourceNode = context.createMediaStreamSource(new MediaStream([audioTrack]));
     } catch (error) {
       node.port.close();
@@ -558,8 +557,8 @@ export class AudioChunker {
    *   re-delivers any unacked chunk, then releases the graph.
    * - `flush: false` discards buffers (cancel), so pending audio is not sent.
    *
-   * The `MediaStream` tracks are **not** stopped here: `TabAudioCapture` owns
-   * them and stops them when the share ends.
+   * The `MediaStream` tracks are **not** stopped here: `AudioCapture` (micCapture) owns
+   * them and stops them when the capture ends.
    */
   async stop(options: { flush?: boolean } = {}): Promise<void> {
     const flush = options.flush ?? true;

@@ -95,8 +95,8 @@ export default function LiveCapturePanel({
         Verificação ao vivo
       </h2>
       <p className="mt-2 text-sm text-[var(--text-secondary)]">
-        Compartilhe a aba que está reproduzindo o debate. O Veritas enviará
-        somente o áudio dessa aba para transcrição e análise.
+        O Veritas escuta o ambiente pelo microfone e envia somente esse áudio
+        para transcrição e análise.
       </p>
       {!capturing ? (
         <>
@@ -108,8 +108,9 @@ export default function LiveCapturePanel({
               className="mt-1"
             />
             <span>
-              Autorizo a captura e o envio do áudio da aba selecionada ao Veritas
-              para transcrição e verificação.
+              Confirmo que as pessoas no ambiente sabem que a conversa será
+              gravada pelo microfone e enviada ao Veritas para transcrição e
+              verificação.
             </span>
           </label>
           <button
@@ -118,7 +119,7 @@ export default function LiveCapturePanel({
             disabled={!consented || busy}
             className="mt-4 rounded-lg bg-[var(--purple-button)] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {busy ? 'Conectando…' : 'Escolher aba e iniciar'}
+            {busy ? 'Conectando…' : 'Iniciar escuta pelo microfone'}
           </button>
         </>
       ) : (

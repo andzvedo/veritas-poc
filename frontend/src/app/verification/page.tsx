@@ -6,7 +6,9 @@ import Header from '@/app/shared/components/Header';
 import ComingSoonBanner from '@/app/shared/components/ComingSoonBanner';
 import VerificationTextArea from '@/app/shared/components/VerificationTextArea';
 import ModeToggle from '@/app/live/components/ModeToggle';
-import LiveSetupPanel from '@/app/live/components/LiveSetupPanel';
+import LiveSetupPanel, {
+  type LiveStartRequest,
+} from '@/app/live/components/LiveSetupPanel';
 import LiveAudioControls from '@/app/live/components/LiveAudioControls';
 import { factCheckService } from '@/lib/services/factCheckService';
 import { useApiKeys } from '@/lib/hooks/useApiKeys';
@@ -67,7 +69,7 @@ export default function VerificationPage() {
     }
   };
 
-  const handleStartLive = useCallback(async () => {
+  const handleStartLive = useCallback(async ({ deviceId }: LiveStartRequest) => {
     setStartingLive(true);
     try {
       await liveSessionController.start({
@@ -75,6 +77,8 @@ export default function VerificationPage() {
           google: apiKeys?.google,
           tavily: apiKeys?.tavily,
         },
+        deviceId: deviceId || undefined,
+        micMessages: t.live.micErrors,
       });
       router.push('/live');
     } catch (error) {
@@ -83,7 +87,7 @@ export default function VerificationPage() {
     } finally {
       setStartingLive(false);
     }
-  }, [apiKeys?.google, apiKeys?.tavily, router, t.errors.internalError]);
+  }, [apiKeys?.google, apiKeys?.tavily, router, t.errors.internalError, t.live.micErrors]);
 
   return (
     <div className="relative min-h-screen w-full bg-gradient-to-b from-[var(--bg-gradient-start)] to-[var(--bg-gradient-end)]">

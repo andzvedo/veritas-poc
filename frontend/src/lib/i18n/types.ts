@@ -312,10 +312,28 @@ export interface TranslationKeys {
       title: string;
       description: string;
       sourceLabel: string;
-      sourceTab: string;
+      sourceMic: string;
+      defaultMic: string;
+      unnamedMic: string;
+      showDevices: string;
+      loadingDevices: string;
+      consentLabel: string;
+      consentRequired: string;
       sourceHint: string;
       privacyNote: string;
     };
+    /** Microphone capture errors, keyed by `MicCaptureErrorCode`. */
+    micErrors: Record<
+      | 'UNSUPPORTED'
+      | 'INSECURE_CONTEXT'
+      | 'PERMISSION_DENIED'
+      | 'NO_DEVICE'
+      | 'DEVICE_IN_USE'
+      | 'DEVICE_DISCONNECTED'
+      | 'NO_AUDIO_TRACK'
+      | 'CAPTURE_FAILED',
+      string
+    >;
     transcript: {
       title: string;
       subtitle: string;

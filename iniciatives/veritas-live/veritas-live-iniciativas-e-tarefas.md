@@ -128,6 +128,8 @@ Demonstrar captura da transmissão escolhida e transcrição local com portuguê
 
 ## LIVE-002 — Captura de áudio da aba
 
+> **Atualização 2026-10-23 (decisão do usuário):** a captura passou a ser pelo **microfone** (`getUserMedia`, `frontend/src/lib/audio/micCapture.ts`, `source: 'MIC'`), porque o compartilhamento de aba não funcionou no piloto. O caminho `getDisplayMedia`/`tabCapture.ts` foi removido.
+
 **Implementar**
 
 `frontend/src/lib/audio/tabCapture.ts`
@@ -785,6 +787,7 @@ Integrar o protótipo de referência ao Design System existente, aplicando as re
 - [ ] Protótipo é referência visual, não comprovação funcional nem aprovação editorial dos rótulos.
 - [ ] Usa os componentes iniciais de LIVE-007; não exige reescrever a experiência inteira antes da fatia integrada.
 - [ ] Microfone e captura mobile ficam fora do piloto; não mostrar opção funcional sem suporte implementado e qualificado.
+  - **Atualização 2026-10-23:** substituído por decisão do usuário — a entrada usa o microfone (seletor de dispositivo + consentimento); captura de aba removida. Mobile segue fora do piloto.
 
 
 ## LIVE-026 — Painel de transcrição

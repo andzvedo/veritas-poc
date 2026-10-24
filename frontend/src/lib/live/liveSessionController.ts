@@ -1,18 +1,21 @@
 /**
- * Orchestrates tab capture + AudioChunker + live WebSocket session (LIVE-007/025).
+ * Orchestrates microphone capture + AudioChunker + live WebSocket session
+ * (LIVE-007/025). Capture source switched from tab sharing to microphone on
+ * 2026-10-23 (user decision).
  *
- * Starts only from an explicit user click. Never auto-recaptures when the share
- * ends. Video from getDisplayMedia is never forwarded — only PCM audio chunks.
+ * Starts only from an explicit user click. Never auto-recaptures when the
+ * microphone is unplugged — only PCM audio chunks are forwarded.
  */
 
 import type { AudioChunkMetaPayload } from '@/lib/audio/audioStream';
 import { AudioChunker, AudioChunkerError } from '@/lib/audio/audioStream';
 import type { GapRange } from '@/lib/audio/flowControl';
 import {
-  startTabAudioCapture,
-  TabCaptureError,
-  type TabAudioCapture,
-} from '@/lib/audio/tabCapture';
+  MicCaptureError,
+  startMicCapture,
+  type AudioCapture,
+  type MicCaptureMessages,
+} from '@/lib/audio/micCapture';
 import { factCheckService } from '@/lib/services/factCheckService';
 import { useFactCheckStore } from '@/lib/store/factCheckStore';
 import { captureFeedbackFromErrorCode } from '@/lib/live/liveUiState';
@@ -22,8 +25,12 @@ export interface LiveSessionStartOptions {
   language?: 'pt-BR';
   /** Injected for tests. */
   createSessionId?: () => string;
-  /** Injected for tests — skip real getDisplayMedia. */
-  startCapture?: () => Promise<TabAudioCapture>;
+  /** Microphone to use; empty/undefined = system default. */
+  deviceId?: string;
+  /** Localized capture error messages (`t.live.micErrors`). */
+  micMessages?: Partial<MicCaptureMessages>;
+  /** Injected for tests — skip real getUserMedia. */
+  startCapture?: () => Promise<AudioCapture>;
   /** Injected for tests. */
   createChunker?: () => AudioChunker;
 }
@@ -46,13 +53,14 @@ function defaultSessionId(): string {
 }
 
 export class LiveSessionController {
-  private capture: TabAudioCapture | null = null;
+  private capture: AudioCapture | null = null;
   private chunker: AudioChunker | null = null;
   private sessionId: string | null = null;
   private phase: LiveSessionControllerPhase = 'idle';
   private unsubscribeAck: (() => void) | null = null;
   private unbindCaptureEnded: (() => void) | null = null;
   private unbindCaptureError: (() => void) | null = null;
+  private lastCaptureError: MicCaptureError | null = null;
 
   getPhase(): LiveSessionControllerPhase {
     return this.phase;
@@ -70,6 +78,7 @@ export class LiveSessionController {
     const store = useFactCheckStore.getState();
     store.reset();
     store.setCaptureFeedback('requesting_permission');
+    this.lastCaptureError = null;
     this.phase = 'starting';
 
     const sessionId = (options.createSessionId ?? defaultSessionId)();
@@ -87,9 +96,15 @@ export class LiveSessionController {
       throw error;
     }
 
-    let capture: TabAudioCapture;
+    let capture: AudioCapture;
     try {
-      const startCapture = options.startCapture ?? (() => startTabAudioCapture());
+      const startCapture =
+        options.startCapture ??
+        (() =>
+          startMicCapture({
+            deviceId: options.deviceId,
+            messages: options.micMessages,
+          }));
       capture = await startCapture();
     } catch (error) {
       this.handleCaptureStartError(error);
@@ -113,9 +128,10 @@ export class LiveSessionController {
     });
 
     this.unbindCaptureEnded = capture.onEnded(() => {
-      void this.handleShareEnded();
+      void this.handleCaptureEnded();
     });
     this.unbindCaptureError = capture.onError((error) => {
+      this.lastCaptureError = error;
       store.setCaptureFeedback(
         captureFeedbackFromErrorCode(error.code),
         error.message,
@@ -141,7 +157,7 @@ export class LiveSessionController {
 
     factCheckService.startLiveSession({
       sessionId,
-      source: 'TAB',
+      source: 'MIC',
       language: options.language ?? 'pt-BR',
       consent: true,
       apiKeys: options.apiKeys,
@@ -237,16 +253,26 @@ export class LiveSessionController {
     });
   }
 
-  private async handleShareEnded(): Promise<void> {
+  /**
+   * Microphone ended on its own (unplugged / permission revoked). The capture
+   * already reported the localized DEVICE_DISCONNECTED message through
+   * `onError`; close the session gracefully (flush + end) without retrying.
+   */
+  private async handleCaptureEnded(): Promise<void> {
     if (this.phase === 'stopping' || this.phase === 'stopped') return;
-    useFactCheckStore
-      .getState()
-      .setCaptureFeedback('ended', 'O compartilhamento da aba foi encerrado.');
+    const reason = this.lastCaptureError;
     await this.stop();
+    if (reason) {
+      // Keep the "microphone disconnected" message visible after the session
+      // closed (the `ended` tone hides errors); the user restarts manually.
+      useFactCheckStore
+        .getState()
+        .setCaptureFeedback(captureFeedbackFromErrorCode(reason.code), reason.message);
+    }
   }
 
   private handleCaptureStartError(error: unknown): void {
-    if (error instanceof TabCaptureError || error instanceof AudioChunkerError) {
+    if (error instanceof MicCaptureError || error instanceof AudioChunkerError) {
       this.failLocal(captureFeedbackFromErrorCode(error.code), error.message);
       return;
     }
@@ -277,7 +303,7 @@ export class LiveSessionController {
       try {
         await this.chunker.stop({ flush: options.flush });
       } catch {
-        // Teardown must not throw — share tracks still need release.
+        // Teardown must not throw — the mic track still needs release.
       }
       this.chunker = null;
     }

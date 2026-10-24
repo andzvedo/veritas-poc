@@ -349,16 +349,16 @@
     },
     "status": {
       "idle": "Pronto para escutar",
-      "requesting_permission": "Solicitando compartilhamento da aba…",
+      "requesting_permission": "Pedindo acesso ao microfone…",
       "connecting": "Conectando sessão…",
       "listening": "Escutando",
       "paused": "Pausado",
       "ending": "Encerrando e drenando fila…",
       "ended": "Sessão encerrada",
       "reconnecting": "Reconectando…",
-      "permission_error": "Permissão de captura negada",
-      "unsupported": "Navegador sem suporte à captura de aba",
-      "no_audio": "Áudio ausente na aba compartilhada",
+      "permission_error": "Acesso ao microfone negado",
+      "unsupported": "Microfone indisponível neste navegador",
+      "no_audio": "Sem áudio do microfone",
       "connection_error": "Falha de conexão",
       "session_error": "Erro na sessão Live"
     },
@@ -374,12 +374,18 @@
     },
     "setup": {
       "eyebrow": "Veritas Live",
-      "title": "Escuta automática da aba",
-      "description": "Após o seu clique, o navegador pedirá para compartilhar uma aba com áudio. O vídeo da captura não é enviado.",
-      "sourceLabel": "Fonte de áudio",
-      "sourceTab": "Aba do navegador (desktop)",
-      "sourceHint": "Marque “Compartilhar áudio da aba” no seletor do navegador. Microfone e captura mobile ficam fora deste piloto.",
-      "privacyNote": "Nenhum vídeo é transmitido. O áudio só é processado enquanto a sessão estiver ativa e com o seu consentimento."
+      "title": "Escuta pelo microfone",
+      "description": "Após o seu clique, o navegador pedirá acesso ao microfone. O Veritas escuta o ambiente onde a conversa acontece.",
+      "sourceLabel": "Microfone",
+      "sourceMic": "Microfone",
+      "defaultMic": "Microfone padrão do sistema",
+      "unnamedMic": "Microfone {{index}}",
+      "showDevices": "Ver microfones disponíveis",
+      "loadingDevices": "Buscando microfones…",
+      "consentLabel": "Confirmo que as pessoas no ambiente sabem que a conversa será gravada pelo microfone e enviada ao Veritas para transcrição e checagem.",
+      "consentRequired": "Marque o consentimento para iniciar",
+      "sourceHint": "Deixe o microfone perto de quem fala. Se o debate toca neste computador, use o som no alto-falante (não no fone).",
+      "privacyNote": "Só o áudio do microfone é enviado, apenas enquanto a sessão estiver ativa."
     },
     "transcript": {
       "title": "Transcrição",
@@ -412,12 +418,21 @@
     "workspace": {
       "eyebrow": "Veritas / Escuta automática",
       "title": "Acompanhamento ao vivo",
-      "intro": "Transcrição progressiva ao lado das verificações. Capture uma aba com áudio; o modo Texto permanece disponível na entrada.",
+      "intro": "Transcrição progressiva ao lado das verificações. O áudio vem do microfone; o modo Texto permanece disponível na entrada.",
       "resultsTitle": "Verificações",
       "resultsEmpty": "As afirmações encontradas aparecerão aqui.",
       "claimCount": "{{count}} afirmações",
       "claimCountOne": "{{count}} afirmação"
+    },
+    "micErrors": {
+      "UNSUPPORTED": "Este navegador não permite acessar o microfone. Use uma versão recente do Chrome, Edge, Safari ou Firefox.",
+      "INSECURE_CONTEXT": "O microfone só funciona em páginas seguras. Abra o Veritas em https:// ou em http://localhost.",
+      "PERMISSION_DENIED": "O acesso ao microfone foi negado. Libere o microfone nas permissões do site (ícone ao lado do endereço) e tente de novo.",
+      "NO_DEVICE": "Nenhum microfone encontrado. Conecte um microfone e tente de novo.",
+      "DEVICE_IN_USE": "O microfone está sendo usado por outro app ou bloqueado pelo sistema. Feche o outro app e tente de novo.",
+      "DEVICE_DISCONNECTED": "O microfone foi desconectado. A escuta foi encerrada; conecte o microfone e inicie de novo.",
+      "NO_AUDIO_TRACK": "O microfone não enviou áudio. Tente outro microfone.",
+      "CAPTURE_FAILED": "Não foi possível acessar o microfone."
     }
   }
 }
-

@@ -123,7 +123,7 @@ const LiveWorkspace: React.FC<LiveWorkspaceProps> = ({ className }) => {
             </p>
             <div className="mt-4 flex flex-wrap gap-2 text-xs text-[#7c7189]">
               <span className="rounded-full border border-[#e4ddec] bg-white px-3 py-2">
-                {t.live.setup.sourceTab}
+                {t.live.setup.sourceMic}
               </span>
               <span className="rounded-full border border-[#e4ddec] bg-white px-3 py-2 font-variant-numeric tabular-nums">
                 {claims.length === 1
