@@ -150,14 +150,25 @@ const requireOwned = (
   return pipeline;
 };
 
-const toPcmBuffer = (audio: ArrayBuffer | Buffer | Uint8Array): Buffer => {
+const toPcmBuffer = (audio: unknown): Buffer | undefined => {
   if (Buffer.isBuffer(audio)) {
     return audio;
   }
-  if (audio instanceof ArrayBuffer) {
+  if (typeof ArrayBuffer !== 'undefined' && audio instanceof ArrayBuffer) {
     return Buffer.from(audio);
   }
-  return Buffer.from(audio.buffer, audio.byteOffset, audio.byteLength);
+  if (audio instanceof Uint8Array) {
+    return Buffer.from(audio.buffer, audio.byteOffset, audio.byteLength);
+  }
+  return undefined;
+};
+
+const sessionIdFromPayload = (payload: unknown): string | undefined => {
+  if (typeof payload !== 'object' || payload === null) {
+    return undefined;
+  }
+  const sessionId = (payload as { sessionId?: unknown }).sessionId;
+  return typeof sessionId === 'string' ? sessionId : undefined;
 };
 
 /**
@@ -185,7 +196,7 @@ export function attachLiveSessionHandlers(
       if (!parsed.success) {
         emitLiveError(
           socket,
-          typeof payload.sessionId === 'string' ? payload.sessionId : undefined,
+          sessionIdFromPayload(payload),
           'Payload START_LIVE_SESSION inválido.',
         );
         return;
@@ -240,7 +251,15 @@ export function attachLiveSessionHandlers(
             : 'Não foi possível iniciar a sessão ao vivo.';
         emitLiveError(socket, data.sessionId, message);
       }
-    })();
+    })().catch((error: unknown) => {
+      emitLiveError(
+        socket,
+        sessionIdFromPayload(payload),
+        error instanceof Error
+          ? error.message
+          : 'Não foi possível iniciar a sessão ao vivo.',
+      );
+    });
   });
 
   socket.on('AUDIO_CHUNK', (payload, audio) => {
@@ -252,9 +271,26 @@ export function attachLiveSessionHandlers(
     if (pipeline === undefined) {
       return;
     }
+    const pcm = toPcmBuffer(audio);
+    if (pcm === undefined || pcm.byteLength === 0 || pcm.byteLength % 2 !== 0) {
+      emitLiveError(
+        socket,
+        parsed.data.sessionId,
+        'Chunk de áudio inválido: esperado PCM16LE binário com tamanho par.',
+      );
+      return;
+    }
     const { sessionId, ...meta } = parsed.data;
     void sessionId;
-    pipeline.handleAudioChunk(meta, toPcmBuffer(audio));
+    try {
+      pipeline.handleAudioChunk(meta, pcm);
+    } catch (error) {
+      emitLiveError(
+        socket,
+        parsed.data.sessionId,
+        error instanceof Error ? error.message : 'Falha ao processar áudio.',
+      );
+    }
   });
 
   socket.on('PAUSE_LIVE_SESSION', (payload) => {
@@ -318,7 +354,13 @@ export function attachLiveSessionHandlers(
       } finally {
         registry.remove(parsed.data.sessionId);
       }
-    })();
+    })().catch((error: unknown) => {
+      emitLiveError(
+        socket,
+        sessionIdFromPayload(payload),
+        error instanceof Error ? error.message : 'Falha ao encerrar sessão.',
+      );
+    });
   });
 
   socket.on('CANCEL_LIVE_SESSION', (payload) => {
@@ -439,7 +481,13 @@ export function attachLiveSessionHandlers(
             : 'Falha ao retentar verificação',
         );
       }
-    })();
+    })().catch((error: unknown) => {
+      emitLiveError(
+        socket,
+        undefined,
+        error instanceof Error ? error.message : 'Falha ao retentar verificação.',
+      );
+    });
   });
 
   socket.on('EXPORT_SESSION', (payload) => {

@@ -3,8 +3,8 @@
 **Versão:** 1.1  
 **Data:** 23 de outubro de 2026  
 **Tipo:** Especificação funcional, editorial, de UX e de contratos técnicos  
-**Documentos relacionados:** [PRD Veritas Live v1.2](veritas-live-prd-v1.1.md) e [Plano técnico v1.1, LIVE-000–LIVE-041](veritas-live-iniciativas-e-tarefas.md)  
-**Status:** Planejamento revisado; implementação e avaliação pendentes
+**Documentos relacionados:** [PRD Veritas Live v1.2](veritas-live-prd.md) e [Plano técnico v1.1, LIVE-000–LIVE-041](veritas-live-iniciativas-e-tarefas.md)
+**Status:** Contratos e pipeline parcialmente implementados; qualidade factual e aceite ainda pendentes
 
 > **Objetivo:** estabelecer como o Veritas transforma uma afirmação capturada em áudio ou recebida como texto em um resultado claro, verificável e contextualizado. Os três estudos de caso principais usam falas reais; a redação dos cartões é uma **proposta de apresentação do Veritas**, não uma reprodução literal dos textos das agências de checagem.
 

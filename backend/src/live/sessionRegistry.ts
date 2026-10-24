@@ -110,8 +110,10 @@ export class LiveSessionRegistry {
   }
 
   /**
-   * Same-instance resume: allow reclaim while RECONNECTING (or still owned),
-   * then rebind the controlling socket id.
+   * Rebind is allowed only for the socket that already owns the session.
+   * Socket IDs are the only ownership proof in the current P0 contract; a
+   * different connection must never take over by presenting a session ID.
+   * Add a separate high-entropy resume credential before enabling takeover.
    */
   reclaim(
     sessionId: string,
@@ -121,9 +123,8 @@ export class LiveSessionRegistry {
     if (entry === undefined) {
       return undefined;
     }
-    const state = entry.pipeline.getStatus().captureState;
     const owned = entry.pipeline.ownerSocketId === newOwnerSocketId;
-    if (!owned && state !== 'RECONNECTING') {
+    if (!owned) {
       return undefined;
     }
     entry.pipeline.ownerSocketId = newOwnerSocketId;

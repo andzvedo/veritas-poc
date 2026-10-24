@@ -151,6 +151,7 @@ const bumpClaim = (
 const remapVerification = (
   template: Verification,
   claim: Claim,
+  revision: number,
   nowIso: string,
 ): Verification => ({
   ...template,
@@ -167,6 +168,7 @@ const remapVerification = (
     ? { timestampMs: { ...claim.timestampMs } }
     : {}),
   updatedAt: nowIso,
+  revision,
 });
 
 /**
@@ -252,6 +254,10 @@ export class LivePipeline {
   private readonly claimToVerification = new Map<string, string>();
   /** segmentId → claimIds derived from it. */
   private readonly segmentToClaims = new Map<string, Set<string>>();
+  /** Invalidates in-flight work without relying on providers honoring abort. */
+  private readonly claimGenerations = new Map<string, number>();
+  /** Revisions survive deletion so retries can never move a card backwards. */
+  private readonly verificationRevisions = new Map<string, number>();
   private ended = false;
   private extractionChain: Promise<void> = Promise.resolve();
 
@@ -353,6 +359,14 @@ export class LivePipeline {
       return;
     }
     await this.session.end(reason);
+    // Final transcript callbacks may still append work to this chain. Drain it
+    // before the research queue so all accepted speech reaches its terminal state.
+    let extractionDrain = this.extractionChain;
+    for (;;) {
+      await extractionDrain;
+      if (extractionDrain === this.extractionChain) break;
+      extractionDrain = this.extractionChain;
+    }
     // Drain investigations accepted before ENDING (bounded by queue timeouts).
     await this.queue.drain();
     this.ended = true;
@@ -397,6 +411,7 @@ export class LivePipeline {
     expectedRevision: number,
   ): SpeakerMapping[] {
     let revision = expectedRevision;
+    const changedSpeakerIds = new Set<string>();
     for (const mapping of mappings) {
       try {
         if (mapping.confirmed) {
@@ -410,8 +425,10 @@ export class LivePipeline {
             );
             revision = this.speakerRegistry.getRevision();
             this.speakerRegistry.confirmMapping(mapping.speakerId, revision);
+            changedSpeakerIds.add(mapping.speakerId);
           } else if (!existing.confirmed) {
             this.speakerRegistry.confirmMapping(mapping.speakerId, revision);
+            changedSpeakerIds.add(mapping.speakerId);
           } else if (
             existing.participantName !== mapping.participantName.trim()
           ) {
@@ -421,6 +438,7 @@ export class LivePipeline {
               revision,
               { confirmed: true },
             );
+            changedSpeakerIds.add(mapping.speakerId);
           }
         } else {
           this.speakerRegistry.setMapping(
@@ -429,6 +447,7 @@ export class LivePipeline {
             revision,
             { confirmed: false },
           );
+          changedSpeakerIds.add(mapping.speakerId);
         }
       } catch (error) {
         if (
@@ -443,6 +462,14 @@ export class LivePipeline {
     }
 
     const current = this.speakerRegistry.getMappings();
+    if (changedSpeakerIds.size > 0) {
+      this.invalidateClaims(
+        (record) =>
+          record.claim.speakerId !== undefined &&
+          changedSpeakerIds.has(record.claim.speakerId),
+        'Atribuição de locutor alterada',
+      );
+    }
     this.emitParsed(
       'SPEAKER_MAPPING_UPDATED',
       SPEAKER_MAPPING_UPDATED_EVENT_SCHEMA,
@@ -466,10 +493,38 @@ export class LivePipeline {
       expectedRevision,
     );
     this.context.addSegment(corrected);
-    this.invalidateClaimsForSegment(
-      segmentId,
+    const affectedSegmentIds = new Set<string>([segmentId]);
+    for (const record of this.claims.values()) {
+      if (
+        record.contextDependencies.some(
+          (dependency) => dependency.id === segmentId,
+        )
+      ) {
+        for (const dependentSegmentId of record.claim.segmentIds) {
+          affectedSegmentIds.add(dependentSegmentId);
+        }
+      }
+    }
+    this.invalidateClaims(
+      (record) =>
+        record.claim.segmentIds.includes(segmentId) ||
+        record.contextDependencies.some(
+          (dependency) => dependency.id === segmentId,
+        ),
       'Transcrição corrigida pelo usuário',
     );
+    // Pronoun/reference extraction in later segments depended on the corrected
+    // context; re-extract those segments after invalidating their old claims.
+    for (const dependentId of affectedSegmentIds) {
+      if (dependentId === segmentId) continue;
+      const dependent = this.segmenter.getSegment(dependentId);
+      if (
+        dependent &&
+        (dependent.status === 'FINAL' || dependent.status === 'BLOCKED')
+      ) {
+        this.enqueueExtraction(dependent);
+      }
+    }
     // Re-extract from the corrected final text (async, non-blocking).
     if (corrected.status === 'FINAL' || corrected.status === 'BLOCKED') {
       this.enqueueExtraction(corrected);
@@ -493,6 +548,10 @@ export class LivePipeline {
     this.invalidateVerification(
       verificationId,
       'Nova tentativa solicitada pelo usuário',
+    );
+    this.claimGenerations.set(
+      record.claim.id,
+      (this.claimGenerations.get(record.claim.id) ?? 0) + 1,
     );
     await this.enqueueInvestigation(record.claim, record.cacheKey);
   }
@@ -696,6 +755,26 @@ export class LivePipeline {
       },
       fingerprint: `${this.sessionId}-${segment.id}-r${String(segment.revision)}`,
     });
+    const latestSegment = this.segmenter.getSegment(segment.id);
+    if (
+      latestSegment === undefined ||
+      latestSegment.revision !== segment.revision
+    ) {
+      return;
+    }
+    const latestWindow = this.context.getContext({
+      excludeSegmentId: segment.id,
+    });
+    const dependencySignature = (
+      items: readonly { id: string; revision: number }[],
+    ) => items.map((item) => `${item.id}@${String(item.revision)}`).join('|');
+    if (
+      dependencySignature(latestWindow.dependencies) !==
+      dependencySignature(window.dependencies)
+    ) {
+      this.enqueueExtraction(latestSegment);
+      return;
+    }
     this.emitMetrics({
       sessionId: this.sessionId,
       stage: 'claim_extraction',
@@ -763,13 +842,19 @@ export class LivePipeline {
     const evaluationLlm = this.evaluationLlm;
     const researchProvider = this.researchProvider;
     const investigate = this.investigateClaimFn;
+    const generation = this.claimGenerations.get(claim.id) ?? 0;
+    const isCurrent = (): boolean =>
+      !this.ended && (this.claimGenerations.get(claim.id) ?? 0) === generation;
 
     try {
       const verification = await this.queue.enqueue({
         id: claim.id,
         ...(cacheKey === undefined ? {} : { key: cacheKey }),
-        version: 0,
+        version: generation,
         run: async (signal) => {
+          if (!isCurrent()) {
+            throw new QueueCancelledError('claim invalidada', claim.id);
+          }
           const researching = bumpClaim(
             this.claims.get(claim.id)?.claim ?? claim,
             'RESEARCHING',
@@ -789,9 +874,20 @@ export class LivePipeline {
             researchProvider,
             signal,
           });
-          return remapVerification(result, claim, this.now().toISOString());
+          if (!isCurrent()) {
+            throw new QueueCancelledError('claim invalidada', claim.id);
+          }
+          const verificationId = `verification-${claim.id}-0`;
+          return remapVerification(
+            result,
+            claim,
+            (this.verificationRevisions.get(verificationId) ?? 0) + 1,
+            this.now().toISOString(),
+          );
         },
       });
+
+      if (!isCurrent()) return;
 
       const completed = bumpClaim(
         this.claims.get(claim.id)?.claim ?? claim,
@@ -811,6 +907,7 @@ export class LivePipeline {
       });
     } catch (error) {
       if (error instanceof QueueDeferredError) {
+        if (!isCurrent()) return;
         const deferred = bumpClaim(claim, 'DEFERRED', this.now().toISOString());
         this.claims.set(claim.id, {
           claim: deferred,
@@ -822,6 +919,7 @@ export class LivePipeline {
         return;
       }
       if (error instanceof QueueCancelledError || this.ended) {
+        if (!isCurrent()) return;
         const cancelled = bumpClaim(
           claim,
           'CANCELLED',
@@ -836,6 +934,7 @@ export class LivePipeline {
         this.emitClaimStatus(cancelled);
         return;
       }
+      if (!isCurrent()) return;
       const failed = bumpClaim(claim, 'FAILED', this.now().toISOString());
       this.claims.set(claim.id, {
         claim: failed,
@@ -857,23 +956,30 @@ export class LivePipeline {
 
   private storeVerification(verification: Verification): void {
     this.verifications.set(verification.id, verification);
+    this.verificationRevisions.set(verification.id, verification.revision);
     this.claimToVerification.set(verification.claimId, verification.id);
   }
 
-  private invalidateClaimsForSegment(segmentId: string, reason: string): void {
-    const claimIds = this.segmentToClaims.get(segmentId);
-    if (claimIds === undefined) {
-      return;
-    }
-    for (const claimId of claimIds) {
+  private invalidateClaims(
+    predicate: (record: ClaimRecord) => boolean,
+    reason: string,
+  ): void {
+    for (const [claimId, record] of [...this.claims.entries()]) {
+      if (!predicate(record)) continue;
+      this.claimGenerations.set(
+        claimId,
+        (this.claimGenerations.get(claimId) ?? 0) + 1,
+      );
       const verificationId = this.claimToVerification.get(claimId);
       if (verificationId !== undefined) {
         this.invalidateVerification(verificationId, reason);
       }
       this.claims.delete(claimId);
       this.claimToVerification.delete(claimId);
+      for (const segmentId of record.claim.segmentIds) {
+        this.segmentToClaims.get(segmentId)?.delete(claimId);
+      }
     }
-    claimIds.clear();
   }
 
   private invalidateVerification(verificationId: string, reason: string): void {
@@ -882,6 +988,7 @@ export class LivePipeline {
       return;
     }
     const revision = existing.revision + 1;
+    this.verificationRevisions.set(verificationId, revision);
     this.verifications.delete(verificationId);
     this.claimToVerification.delete(existing.claimId);
     this.emitParsed(

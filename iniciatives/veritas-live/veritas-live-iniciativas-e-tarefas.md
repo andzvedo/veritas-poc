@@ -3,7 +3,7 @@
 - **Versão:** 1.1
 - **Origem:** PRD Veritas Live v1.2 e Especificação de verificações v1.1
 - **Repositório:** https://github.com/Fconstant/veritas-poc
-- **Status:** Planejamento revisado; implementação e validação pendentes
+- **Status:** Implementação parcial no código; aceite das tarefas continua pendente de evidência
 
 ---
 
@@ -37,12 +37,20 @@ A implementação deve preservar o modo de verificação manual existente.
 
 Os IDs `LIVE-001` a `LIVE-039` são preservados. Esta revisão acrescenta `LIVE-000` (qualificação), `LIVE-040` (revisões) e `LIVE-041` (gate do piloto), totalizando 42 tarefas. Nenhuma tarefa é considerada implementada por esta edição.
 
-Documentos normativos: [PRD v1.2](veritas-live-prd-v1.1.md) e [Especificação de verificações v1.1](veritas-live-especificacao-de-verificacoes-v1.0.md). Os nomes dos arquivos são mantidos para preservar links.
+Documentos normativos: [PRD v1.2](veritas-live-prd.md) e [Especificação de verificações v1.1](veritas-live-especificacao-de-verificacoes.md). Os nomes dos arquivos são mantidos para preservar links.
 
 Prioridades:
 
 - **P0:** obrigatório para o MVP funcional.
 - **P1:** necessário para a experiência completa, mas pode ser entregue depois do primeiro piloto.
+
+### Estado da implementação observado
+
+O commit `76063273dbb4cebffa9464253b0cc9851ded7a23` integra contratos compartilhados, captura de áudio no navegador, pipeline de transcrição e claims, fila de pesquisa, eventos Socket.IO e cards de verificação. A suíte automatizada e verificações estáticas desse commit passaram no snapshot auditado, mas usam mocks em parte do fluxo; não comprovam captura real, qualidade de fala/autoria, precisão factual, latência-alvo nem ensaio de duas horas.
+
+Esta rodada corrige lacunas no fluxo de interface, entrada de socket, autoria apresentada, sincronização de revisão, citação literal, falhas de recuperação documental e encerramento. As alterações em andamento ainda precisam de revisão e validação integrada; por isso, os checkboxes abaixo permanecem como critérios, não como declaração de aceite. O sistema também continua sem retomada segura de sessão por socket novo: a interface encerra a captura e orienta iniciar outra sessão quando a conexão cai.
+
+Permanecem gates explícitos: qualificação de navegador/player/modelos e orçamento (LIVE-000), diarização contínua avaliada (LIVE-010/034), benchmark documental independente (LIVE-024/035), limites/cancelamento e consumo observados (LIVE-023/036), prova de fonte reproduzível, ensaio prolongado (LIVE-041) e revisão de segurança/privacidade (LIVE-038). Histórico persistente e mobile seguem P1 (LIVE-029/030/031).
 
 ### Definition of Done geral
 

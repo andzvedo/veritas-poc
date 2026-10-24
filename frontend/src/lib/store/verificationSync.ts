@@ -144,9 +144,23 @@ export function applySessionSnapshotVerifications(
   items: readonly Verification[],
   snapshot: SessionSnapshotData,
 ): { items: Verification[]; cursor: number } {
-  let next = items.filter(
+  // A snapshot is authoritative for the session's current cards. Keeping local
+  // items that are absent from it resurrects results whose invalidation event
+  // was missed while the client was disconnected. Preserve known tombstones so
+  // a delayed older snapshot cannot undo an invalidation already received.
+  const otherSessions = items.filter(
+    (item) => item.sessionId !== undefined && item.sessionId !== snapshot.sessionId,
+  );
+  const currentSession = items.filter(
     (item) => item.sessionId === undefined || item.sessionId === snapshot.sessionId,
   );
+  const snapshotIds = new Set(snapshot.verifications.map((item) => item.id));
+  let next = [
+    ...otherSessions,
+    ...currentSession.filter(
+      (item) => item.status === 'CANCELLED' && !snapshotIds.has(item.id),
+    ),
+  ];
 
   for (const verification of snapshot.verifications) {
     const result = upsertByRevision(next, verification, snapshot.sessionId);

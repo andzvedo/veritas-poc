@@ -7,6 +7,7 @@ import type {
   VerificationState,
   VerificationStatus,
 } from '../types/api';
+import type { SpeakerMapping, TranscriptSegment } from '@veritas/shared';
 import {
   applySessionSnapshotVerifications,
   applyVerificationInvalidation,
@@ -15,7 +16,11 @@ import {
   upsertByRevision,
 } from './verificationSync';
 
-type FactCheckStoreState = VerificationState;
+type FactCheckStoreState = VerificationState & {
+  transcriptSegments: TranscriptSegment[];
+  speakerMappings: SpeakerMapping[];
+  speakerMappingRevision: number;
+};
 
 interface FactCheckStoreActions {
   update: (updates: Partial<FactCheckStoreState>) => void;
@@ -26,6 +31,8 @@ interface FactCheckStoreActions {
   upsertVerification: (verification: Verification) => void;
   invalidateVerification: (payload: VerificationInvalidatedData) => void;
   applySessionSnapshot: (snapshot: SessionSnapshotData) => void;
+  upsertTranscriptSegment: (segment: TranscriptSegment) => void;
+  setSpeakerMappings: (mappings: SpeakerMapping[], revision: number) => void;
   rememberEventId: (eventId: string) => boolean;
   advanceCursor: (eventSeq: number) => void;
   reset: () => void;
@@ -37,6 +44,9 @@ const initialState: FactCheckStoreState = {
   status: 'idle',
   results: [],
   verifications: [],
+  transcriptSegments: [],
+  speakerMappings: [],
+  speakerMappingRevision: 0,
   sessionId: null,
   eventCursor: 0,
   seenEventIds: [],
@@ -126,10 +136,26 @@ export const useFactCheckStore = create<FactCheckStore>((set, get) => ({
       return {
         ...state,
         sessionId: snapshot.sessionId,
+        transcriptSegments: snapshot.segments,
         verifications: merged.items,
         eventCursor: Math.max(state.eventCursor, merged.cursor),
       };
     }),
+  upsertTranscriptSegment: (segment) =>
+    set((state) => {
+      if (state.sessionId !== null && segment.sessionId !== state.sessionId) {
+        return state;
+      }
+      const index = state.transcriptSegments.findIndex((item) => item.id === segment.id);
+      if (index === -1) {
+        return { transcriptSegments: [...state.transcriptSegments, segment] };
+      }
+      if (state.transcriptSegments[index].revision >= segment.revision) return state;
+      const transcriptSegments = [...state.transcriptSegments];
+      transcriptSegments[index] = segment;
+      return { transcriptSegments };
+    }),
+  setSpeakerMappings: (mappings, revision) => set({ speakerMappings: mappings, speakerMappingRevision: revision }),
   rememberEventId: (eventId) => {
     const state = get();
     if (state.seenEventIds.includes(eventId)) {

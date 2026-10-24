@@ -321,5 +321,30 @@ export async function retrieveEvidence(
     documents[source.id] = content;
   }
 
+  // If every candidate failed at the provider boundary, preserve that as an
+  // operational failure. An empty evidence set caused by provider outage is
+  // not the same as a successful search that found no useful evidence.
+  if (
+    candidates.length > 0 &&
+    sources.length === 0 &&
+    failures.length === candidates.length &&
+    failures.every((failure) => failure.kind !== undefined)
+  ) {
+    const kinds = failures.map((failure) => failure.kind);
+    const kind = kinds.includes('QUOTA')
+      ? 'QUOTA'
+      : kinds.includes('TIMEOUT')
+        ? 'TIMEOUT'
+        : kinds.includes('TRANSIENT')
+          ? 'TRANSIENT'
+          : kinds.includes('INVALID')
+            ? 'INVALID'
+            : 'UNAVAILABLE';
+    throw new ResearchError(
+      kind,
+      'Todos os documentos encontrados falharam ao serem recuperados pelo provedor de pesquisa.',
+    );
+  }
+
   return { sources, documents, failures };
 }

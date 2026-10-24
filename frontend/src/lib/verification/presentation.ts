@@ -5,6 +5,7 @@ import type {
   Mechanism,
   MechanismCode,
   Source,
+  SpeakerMapping,
   Verification,
   Verdict,
 } from '@veritas/shared';
@@ -178,8 +179,14 @@ export function getLimitations(verification: Verification): string[] {
  * The contract carries attribution as `speakerId` only. The card must show that
  * reference or an explicit "authorship not confirmed" label — never invent a name.
  */
-export function getSpeakerLabel(verification: Verification): string | null {
-  return toText(verification.speakerId);
+export function getSpeakerLabel(
+  verification: Verification,
+  mappings: readonly SpeakerMapping[] = [],
+): string | null {
+  const speakerId = toText(verification.speakerId);
+  if (speakerId === null) return null;
+  const mapping = mappings.find((item) => item.speakerId === speakerId && item.confirmed);
+  return toText(mapping?.participantName) ?? speakerId;
 }
 
 // ===== Evidence =====

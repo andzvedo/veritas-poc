@@ -7,6 +7,7 @@ import type { LucideIcon } from 'lucide-react';
 import type { ClaimStatus, Verification } from '@veritas/shared';
 
 import { cn } from '@/lib/utils';
+import { useFactCheckStore } from '@/lib/store/factCheckStore';
 import { interpolate, useI18n } from '@/lib/i18n/I18nContext';
 import {
   deriveContradiction,
@@ -160,6 +161,7 @@ const VerificationCard: React.FC<VerificationCardProps> = ({
   className,
 }) => {
   const { t } = useI18n();
+  const speakerMappings = useFactCheckStore((state) => state.speakerMappings);
 
   const definitive = isDefinitive(verification);
   const verdict = getDisplayVerdict(verification);
@@ -168,7 +170,7 @@ const VerificationCard: React.FC<VerificationCardProps> = ({
   const contradiction = deriveContradiction(verification);
   const supportedAspects = getSupportedAspects(verification);
   const limitations = getLimitations(verification);
-  const speaker = getSpeakerLabel(verification);
+  const speaker = getSpeakerLabel(verification, speakerMappings);
   const timestamp = formatTimestamp(verification.timestampMs?.start);
 
   const noticeStatus: NoticeStatus =

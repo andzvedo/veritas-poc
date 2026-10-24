@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '@/app/shared/components/Header';
 import ComingSoonBanner from '@/app/shared/components/ComingSoonBanner';
+import LiveCapturePanel from './LiveCapturePanel';
 import VerificationTextArea from '@/app/shared/components/VerificationTextArea';
 import { factCheckService } from '@/lib/services/factCheckService';
 import { useApiKeys } from '@/lib/hooks/useApiKeys';
@@ -97,10 +98,12 @@ export default function VerificationPage() {
 
       {/* Verification Content - z-20 */}
       <div className="relative z-20 flex items-start justify-center min-h-screen px-4 pt-[84px] pb-12">
-        <div className="flex flex-col items-center w-[570px] pt-[64px] gap-8">
+        <div className="flex w-full max-w-[900px] flex-col items-center pt-[48px] gap-8">
+
+          <LiveCapturePanel apiKeys={{ google: apiKeys?.google, tavily: apiKeys?.tavily }} />
 
           {/* Header com Título e Coming Soon */}
-          <div className="flex flex-col gap-4 items-center w-full">
+          <div className="flex w-full flex-col items-center gap-4">
             <h1
               className="font-[var(--font-inter)] font-medium text-[28px] leading-[40px] tracking-[0.28px] text-center min-w-full w-[min-content]"
               style={{ color: 'var(--text-title)' }}
@@ -111,12 +114,14 @@ export default function VerificationPage() {
           </div>
 
           {/* Text Area Component */}
+          <div className="w-full max-w-[570px]">
           <VerificationTextArea
             value={text}
             onChange={setText}
             onUseExample={handleUseExample}
             onVerify={handleVerify}
           />
+          </div>
 
         </div>
       </div>

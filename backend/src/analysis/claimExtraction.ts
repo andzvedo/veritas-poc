@@ -54,7 +54,9 @@ export const EXTRACTED_CLAIM_SCHEMA = z.object({
     .string()
     .min(1)
     .optional()
-    .describe('População, local, programa ou recorte a que a proposição se aplica.'),
+    .describe(
+      'População, local, programa ou recorte a que a proposição se aplica.',
+    ),
   quantity: z
     .object({
       value: z.number(),
@@ -124,10 +126,10 @@ INPUT (utterance to extract claims from):
 
 export const EXTRACTION_PROMPT = ChatPromptTemplate.fromTemplate(SYSTEM_PROMPT);
 
-function promptValues({
-  text,
-  context,
-}: ExtractionPromptInput): { context: string; input: string } {
+function promptValues({ text, context }: ExtractionPromptInput): {
+  context: string;
+  input: string;
+} {
   return { context: context?.trim() ?? '', input: text };
 }
 
@@ -156,7 +158,10 @@ function stripCodeFences(raw: string): string {
 
 function describeIssues(error: z.ZodError): string {
   return error.issues
-    .map((issue) => `${issue.path.map(String).join('.') || '<root>'}: ${issue.message}`)
+    .map(
+      (issue) =>
+        `${issue.path.map(String).join('.') || '<root>'}: ${issue.message}`,
+    )
     .join('; ');
 }
 
@@ -217,9 +222,13 @@ export function toClaims(
     const claimId = `claim-${runId}-${index.toString()}`;
     const claim: Claim = {
       id: claimId,
-      ...(source.sessionId !== undefined ? { sessionId: source.sessionId } : {}),
+      ...(source.sessionId !== undefined
+        ? { sessionId: source.sessionId }
+        : {}),
       segmentIds: [...source.segmentIds],
-      ...(source.speakerId !== undefined ? { speakerId: source.speakerId } : {}),
+      ...(source.speakerId !== undefined
+        ? { speakerId: source.speakerId }
+        : {}),
       originalQuote: item.originalQuote,
       normalizedClaim: item.normalizedClaim,
       ...(source.timestampMs !== undefined
@@ -257,6 +266,17 @@ export async function extractClaims({
   );
   const response = await llm.invoke(messages);
   const extracted = parseExtractionResponse(response.text);
+
+  // Treat the speech as the source of truth for the quote. A schema-valid
+  // response can still contain a quote invented or paraphrased by the model.
+  const invalidQuote = extracted.find(
+    (item) => !text.includes(item.originalQuote),
+  );
+  if (invalidQuote !== undefined) {
+    throw new ValidationError(
+      'A extração retornou uma citação que não aparece literalmente no trecho transcrito; a afirmação foi descartada.',
+    );
+  }
 
   return toClaims(extracted, source, fingerprint);
 }

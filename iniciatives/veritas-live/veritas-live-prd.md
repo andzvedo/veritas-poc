@@ -4,7 +4,7 @@
 
 - **Versão:** 1.2
 - **Data:** 23/10/2026
-- **Status:** Planejamento revisado; implementação e validação pendentes
+- **Status:** Implementação parcial no código; piloto/MVP ainda não validados
 - **Repositório:** https://github.com/Fconstant/veritas-poc
 
 ---
@@ -19,7 +19,7 @@ O produto deve identificar quem fez cada afirmação, confrontá-la com evidênc
 
 ## 2. Objetivo do MVP
 
-**Documentos normativos:** [Especificação de verificações v1.1](veritas-live-especificacao-de-verificacoes-v1.0.md) e [Plano técnico v1.1](veritas-live-iniciativas-e-tarefas.md). Os nomes dos arquivos são preservados para manter os links; a versão vigente é a do cabeçalho. Esta revisão altera somente planejamento, sem declarar funcionalidades implementadas.
+**Documentos normativos:** [Especificação de verificações v1.1](veritas-live-especificacao-de-verificacoes.md) e [Plano técnico v1.1](veritas-live-iniciativas-e-tarefas.md). A versão vigente é a do cabeçalho. Há código parcial para captura, sessão, transcrição, extração, pesquisa e cards; isso não significa que o percurso esteja liberado nem que os gates de qualidade tenham sido cumpridos. Consulte o plano técnico para o estado e as evidências de cada tarefa.
 
 ### 2.1 Piloto experimental e MVP completo
 
