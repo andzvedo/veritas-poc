@@ -23,6 +23,10 @@
     "test": "vitest run unit --config __tests__/vitest.config.ts",
     "test:coverage": "vitest run unit --config __tests__/vitest.config.ts --coverage.enabled --coverage.all",
     "eval:factual": "tsx eval/factual/runner.ts",
+    "eval:transcription": "tsx eval/transcription/run-transcription.ts",
+    "eval:speakers": "tsx eval/speakers-claims/run-speakers-claims.ts",
+    "eval:evidence": "tsx eval/evidence/run-evidence.ts",
+    "eval:all": "pnpm eval:factual && pnpm eval:transcription && pnpm eval:speakers && pnpm eval:evidence",
     "prettier": "prettier \"{src,__{tests}__}/**/*.{ts,mts}\" --config .prettierrc --write",
     "prettier:check": "prettier \"{src,__{tests}__}/**/*.{ts,mts}\" --config .prettierrc --check",
     "test:watch": "vitest unit"

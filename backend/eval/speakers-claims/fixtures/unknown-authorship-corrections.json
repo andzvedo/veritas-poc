@@ -1,0 +1,82 @@
+{
+  "id": "unknown-authorship-corrections",
+  "title": "Sem diarização: autoria desconhecida, quase-duplicatas (não/número/unidade) e correção de contexto",
+  "media": { "kind": "TEXT_SIMULATED", "reference": "n/a (diálogo textual anotado; sem áudio)" },
+  "diarizationProvenance": "NONE",
+  "extractionProvenance": "SCRIPTED",
+  "contextMaxSegments": 3,
+  "participants": [
+    { "ref": "A", "name": "Participante A", "role": "PARTICIPANT" },
+    { "ref": "B", "name": "Participante B", "role": "PARTICIPANT" }
+  ],
+  "mapping": [],
+  "segments": [
+    {
+      "id": "t1", "startMs": 0, "endMs": 4000, "refSpeaker": "A",
+      "text": "O governo não cortou o orçamento da saúde em 2023.",
+      "extraction": [
+        { "originalQuote": "O governo não cortou o orçamento da saúde em 2023", "normalizedClaim": "O governo não cortou o orçamento da saúde em 2023", "period": { "start": "2023" } }
+      ],
+      "correction": { "text": "O governo cortou o orçamento da saúde em 2023." }
+    },
+    {
+      "id": "t2", "startMs": 4500, "endMs": 8000, "refSpeaker": "B",
+      "text": "O governo cortou o orçamento da saúde em 2023.",
+      "extraction": [
+        { "originalQuote": "O governo cortou o orçamento da saúde em 2023", "normalizedClaim": "O governo cortou o orçamento da saúde em 2023", "period": { "start": "2023" } }
+      ]
+    },
+    {
+      "id": "t3", "startMs": 8500, "endMs": 12000, "refSpeaker": "A",
+      "text": "O Auxílio pagou R$ 600 em 2022.",
+      "extraction": [
+        { "originalQuote": "O Auxílio pagou R$ 600 em 2022", "normalizedClaim": "O Auxílio pagou R$ 600 em 2022", "quantity": { "value": 600, "unit": "R$" }, "period": { "start": "2022" } }
+      ]
+    },
+    {
+      "id": "t4", "startMs": 12500, "endMs": 16000, "refSpeaker": "B",
+      "text": "O Auxílio pagou R$ 400 em 2022.",
+      "extraction": [
+        { "originalQuote": "O Auxílio pagou R$ 400 em 2022", "normalizedClaim": "O Auxílio pagou R$ 400 em 2022", "quantity": { "value": 400, "unit": "R$" }, "period": { "start": "2022" } }
+      ]
+    },
+    {
+      "id": "t5", "startMs": 16500, "endMs": 19000, "refSpeaker": "A",
+      "text": "Foram 7 bilhões em viagens.",
+      "extraction": [
+        { "originalQuote": "Foram 7 bilhões em viagens", "normalizedClaim": "Foram gastos 7 bilhões de reais em viagens", "quantity": { "value": 7, "unit": "bilhões" } }
+      ]
+    },
+    {
+      "id": "t6", "startMs": 19500, "endMs": 22000, "refSpeaker": "B",
+      "text": "Foram 7 milhões em viagens.",
+      "extraction": [
+        { "originalQuote": "Foram 7 milhões em viagens", "normalizedClaim": "Foram gastos 7 milhões de reais em viagens", "quantity": { "value": 7, "unit": "milhões" } }
+      ]
+    },
+    {
+      "id": "t7", "startMs": 22500, "endMs": 26000, "refSpeaker": "A",
+      "text": "E esse valor foi gasto só com a comitiva.",
+      "extraction": [
+        { "originalQuote": "esse valor foi gasto só com a comitiva", "normalizedClaim": "Os 7 milhões de reais em viagens foram gastos só com a comitiva" }
+      ]
+    },
+    {
+      "id": "t8", "startMs": 26500, "endMs": 29000, "refSpeaker": "A",
+      "text": "Vamos fazer o melhor governo da história.",
+      "extraction": [
+        { "originalQuote": "Vamos fazer o melhor governo da história", "normalizedClaim": "Promessa de fazer o melhor governo da história", "notFactCheckable": true }
+      ]
+    }
+  ],
+  "goldClaims": [
+    { "id": "h1", "segmentId": "t1", "speakerRef": "A", "quote": "O governo não cortou o orçamento da saúde em 2023", "kind": "CHECKABLE", "staleAfterCorrection": true, "notes": "ASR inseriu 'não'; a correção do segmento invalida a claim." },
+    { "id": "h2", "segmentId": "t2", "speakerRef": "B", "quote": "O governo cortou o orçamento da saúde em 2023", "kind": "CHECKABLE", "staleAfterCorrection": true, "notes": "Não é duplicata de h1 (negação). Contexto dependia de t1." },
+    { "id": "h3", "segmentId": "t3", "speakerRef": "A", "quote": "O Auxílio pagou R$ 600 em 2022", "kind": "CHECKABLE", "staleAfterCorrection": true },
+    { "id": "h4", "segmentId": "t4", "speakerRef": "B", "quote": "O Auxílio pagou R$ 400 em 2022", "kind": "CHECKABLE", "staleAfterCorrection": true, "notes": "Não é duplicata de h3 (número)." },
+    { "id": "h5", "segmentId": "t5", "speakerRef": "A", "quote": "Foram 7 bilhões em viagens", "kind": "CHECKABLE" },
+    { "id": "h6", "segmentId": "t6", "speakerRef": "B", "quote": "Foram 7 milhões em viagens", "kind": "CHECKABLE", "notes": "Não é duplicata de h5 (unidade)." },
+    { "id": "h7", "segmentId": "t7", "speakerRef": "A", "quote": "esse valor foi gasto só com a comitiva", "kind": "CHECKABLE", "requiresContextSegmentIds": ["t6"], "requiresContextText": "7 milhões" },
+    { "id": "h8", "segmentId": "t8", "speakerRef": "A", "quote": "Vamos fazer o melhor governo da história", "kind": "NOT_FACT_CHECKABLE" }
+  ]
+}

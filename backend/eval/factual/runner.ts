@@ -131,7 +131,7 @@ function buildBaseVerification(
   };
 }
 
-async function runCompletedCase(
+export async function runCompletedCase(
   fixture: FixtureCase,
 ): Promise<Verification> {
   const claim = buildClaim(fixture);
@@ -174,7 +174,7 @@ async function runCompletedCase(
   });
 }
 
-async function runOperationalCase(
+export async function runOperationalCase(
   fixture: FixtureCase,
 ): Promise<Verification> {
   const claim = buildClaim(fixture);
@@ -246,7 +246,7 @@ function check(
   return detail === undefined ? { name, ok } : { name, ok, detail };
 }
 
-function evaluateCase(
+export function evaluateCase(
   fixture: FixtureCase,
   verification: Verification,
 ): CaseCheckResult {

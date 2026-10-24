@@ -1,0 +1,32 @@
+{
+  "id": "overlap-travels-rebuttal",
+  "title": "Fala simultânea: afirmação e réplica sobrepostas",
+  "role": "CORPUS",
+  "condition": "OVERLAP",
+  "media": {
+    "kind": "TEXT_SIMULATED",
+    "reference": "n/a (fixture textual; sobreposição descrita)",
+    "offsetMs": 0,
+    "durationMs": 6400,
+    "window": { "sizeMs": 8000, "overlapMs": 1000 }
+  },
+  "reference": {
+    "text": "Foram 7 bilhões de reais em viagens. Não foram, isso é mentira.",
+    "criticalTerms": [
+      { "text": "7", "category": "NUMBER", "accept": ["sete"] },
+      { "text": "bilhões", "category": "UNIT" },
+      { "text": "reais", "category": "UNIT" },
+      { "text": "não", "category": "NEGATION" }
+    ],
+    "annotator": "anotação editorial do fixture (revisável)"
+  },
+  "hypothesis": {
+    "provenance": "SIMULATED",
+    "text": "foram 7 bilhões de reais em viagens não foram isso é",
+    "model": "simulado (sem modelo)",
+    "hardware": "n/a",
+    "processingMs": 1900
+  },
+  "expected": { "criticalErrors": [] },
+  "notes": "Deleção no fim da sobreposição ('mentira'). A autoria da janela sobreposta é avaliada em LIVE-034."
+}

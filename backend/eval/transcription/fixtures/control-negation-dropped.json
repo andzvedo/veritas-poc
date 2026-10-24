@@ -1,0 +1,30 @@
+{
+  "id": "control-negation-dropped",
+  "title": "Controle: 'não' perdido inverte a afirmação",
+  "role": "CONTROL",
+  "condition": "NOISE",
+  "media": {
+    "kind": "TEXT_SIMULATED",
+    "reference": "n/a (controle de sensibilidade)",
+    "offsetMs": 0,
+    "durationMs": 4200,
+    "window": { "sizeMs": 8000, "overlapMs": 1000 }
+  },
+  "reference": {
+    "text": "O governo não cortou o orçamento da saúde em 2023.",
+    "criticalTerms": [
+      { "text": "não", "category": "NEGATION" },
+      { "text": "2023", "category": "DATE" }
+    ],
+    "annotator": "controle sintético"
+  },
+  "hypothesis": {
+    "provenance": "SIMULATED",
+    "text": "o governo cortou o orçamento da saúde em 2023",
+    "model": "simulado (sem modelo)",
+    "hardware": "n/a",
+    "processingMs": 1500
+  },
+  "expected": { "criticalErrors": ["NEGATION:não"] },
+  "notes": "WER baixo (1 deleção) mas erro crítico: o harness deve acusar mesmo com WER global bom."
+}

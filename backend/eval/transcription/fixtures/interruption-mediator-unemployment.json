@@ -1,0 +1,30 @@
+{
+  "id": "interruption-mediator-unemployment",
+  "title": "Interrupção do mediador no meio da afirmação",
+  "role": "CORPUS",
+  "condition": "INTERRUPTION",
+  "media": {
+    "kind": "TEXT_SIMULATED",
+    "reference": "n/a (fixture textual; interrupção descrita)",
+    "offsetMs": 0,
+    "durationMs": 8000,
+    "window": { "sizeMs": 8000, "overlapMs": 1000 }
+  },
+  "reference": {
+    "text": "O desemprego caiu para 6,8% no trimestre — Candidato, seu tempo acabou. — e isso não aconteceu por acaso.",
+    "criticalTerms": [
+      { "text": "6,8%", "category": "PERCENT" },
+      { "text": "não", "category": "NEGATION" }
+    ],
+    "annotator": "anotação editorial do fixture (revisável)"
+  },
+  "hypothesis": {
+    "provenance": "SIMULATED",
+    "text": "o desemprego caiu para 6,8% no semestre candidato seu tempo acabou e isso não aconteceu por acaso",
+    "model": "simulado (sem modelo)",
+    "hardware": "n/a",
+    "processingMs": 3100
+  },
+  "expected": { "criticalErrors": [] },
+  "notes": "Erro não anotado como crítico: 'trimestre' → 'semestre' (entra no WER)."
+}

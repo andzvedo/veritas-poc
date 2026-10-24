@@ -1,0 +1,30 @@
+{
+  "id": "control-negation-inserted",
+  "title": "Controle: 'não' inserido pela transcrição",
+  "role": "CONTROL",
+  "condition": "NOISE",
+  "media": {
+    "kind": "TEXT_SIMULATED",
+    "reference": "n/a (controle de sensibilidade)",
+    "offsetMs": 0,
+    "durationMs": 3900,
+    "window": { "sizeMs": 8000, "overlapMs": 1000 }
+  },
+  "reference": {
+    "text": "O Pix foi lançado em novembro de 2020.",
+    "criticalTerms": [
+      { "text": "Pix", "category": "PROPER_NAME" },
+      { "text": "novembro de 2020", "category": "DATE" },
+      { "text": "não", "category": "NEGATION" }
+    ],
+    "annotator": "controle sintético"
+  },
+  "hypothesis": {
+    "provenance": "SIMULATED",
+    "text": "o Pix não foi lançado em novembro de 2020",
+    "model": "simulado (sem modelo)",
+    "hardware": "n/a",
+    "processingMs": 1300
+  },
+  "expected": { "criticalErrors": ["NEGATION:não"] }
+}

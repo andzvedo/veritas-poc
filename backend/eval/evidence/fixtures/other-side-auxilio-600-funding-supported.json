@@ -1,0 +1,51 @@
+{
+  "id": "other-side-auxilio-600-funding-supported",
+  "title": "Participante de outro campo: R$ 600 tinha financiamento só até dez/2022",
+  "family": "auxilio-600",
+  "participant": "Participante E",
+  "originalQuote": "O Auxílio de 600 reais só tinha financiamento previsto até dezembro de 2022.",
+  "normalizedClaim": "O Auxílio Brasil de R$ 600 tinha financiamento previsto apenas até dezembro de 2022.",
+  "atomicProposition": "O financiamento do Auxílio Brasil de R$ 600 estava previsto até dezembro de 2022.",
+  "transcriptConfirmed": true,
+  "verdictDraft": {
+    "verdict": "SUPPORTED",
+    "conclusion": "O valor de R$ 600 do Auxílio Brasil em 2022 tinha financiamento previsto até dezembro de 2022.",
+    "limitations": [
+      "A continuidade de R$ 600 em 2023 dependeu de nova aprovação orçamentária; isso é contexto, não muda a proposição."
+    ]
+  },
+  "sources": [
+    {
+      "id": "src-e-1",
+      "title": "Linha do tempo Auxílio Brasil R$ 600",
+      "publisher": "corpus-local",
+      "url": "https://www.gov.br/cidadania/pt-br/auxilio-brasil",
+      "type": "PRIMARY",
+      "corpusDocumentId": "auxilio-brasil-600-2022",
+      "indirect": false
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev-e-1",
+      "sourceId": "src-e-1",
+      "relation": "SUPPORTS",
+      "excerpt": "Em 2022, o Auxílio Brasil foi ampliado para o valor de R$ 600 por família, com financiamento previsto até dezembro de 2022, com participação do Executivo e do Congresso Nacional.",
+      "explanation": "Documenta o prazo de financiamento previsto para o valor de R$ 600."
+    },
+    {
+      "id": "ev-e-2",
+      "sourceId": "src-e-1",
+      "relation": "CONTEXTUALIZES",
+      "excerpt": "O Congresso aprovou recursos para continuidade de R$ 600 no orçamento de 2023 após alterações na proposta.",
+      "explanation": "A continuidade posterior exigiu nova decisão orçamentária."
+    }
+  ],
+  "gaps": [],
+  "expected": {
+    "status": "COMPLETED",
+    "verdict": "SUPPORTED",
+    "notes": "Fala hipotética construída para teste de equidade (LIVE-035); não é atribuída a pessoa real. Mesmo corpus e critérios dos casos auxilio-600."
+  },
+  "references": []
+}

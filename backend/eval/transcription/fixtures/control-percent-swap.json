@@ -1,0 +1,32 @@
+{
+  "id": "control-percent-swap",
+  "title": "Controle: dígitos trocados em percentual",
+  "role": "CONTROL",
+  "condition": "CLEAN",
+  "media": {
+    "kind": "TEXT_SIMULATED",
+    "reference": "n/a (controle de sensibilidade)",
+    "offsetMs": 0,
+    "durationMs": 5600,
+    "window": { "sizeMs": 8000, "overlapMs": 1000 }
+  },
+  "reference": {
+    "text": "A inflação de 2022 fechou em 5,79%, abaixo dos 10,06% de 2021.",
+    "criticalTerms": [
+      { "text": "2022", "category": "DATE" },
+      { "text": "5,79%", "category": "PERCENT" },
+      { "text": "10,06%", "category": "PERCENT" },
+      { "text": "2021", "category": "DATE" }
+    ],
+    "annotator": "controle sintético"
+  },
+  "hypothesis": {
+    "provenance": "SIMULATED",
+    "text": "a inflação de 2022 fechou em 5,97% abaixo dos 10,06% de 2021",
+    "model": "simulado (sem modelo)",
+    "hardware": "n/a",
+    "processingMs": 9100
+  },
+  "expected": { "criticalErrors": ["PERCENT:5,79%"] },
+  "notes": "Também simula janela mais lenta que o tempo real (processamento > duração)."
+}

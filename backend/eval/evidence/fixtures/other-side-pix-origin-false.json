@@ -1,0 +1,63 @@
+{
+  "id": "other-side-pix-origin-false",
+  "title": "Participante de outro campo: origem do Pix atribuída a governo do PT",
+  "family": "pix-origin",
+  "participant": "Participante F",
+  "originalQuote": "Quem teve a ideia do Pix foi o governo do PT.",
+  "normalizedClaim": "A ideia de criar o Pix surgiu em um governo do PT.",
+  "atomicProposition": "A ideia de criar o Pix surgiu em um governo do PT.",
+  "transcriptConfirmed": true,
+  "verdictDraft": {
+    "verdict": "FALSE",
+    "conclusion": "A concepção institucional do Pix está documentada no GT de pagamentos instantâneos do Banco Central, instituído em maio de 2018, durante o governo Michel Temer.",
+    "contradiction": "O Banco Central instituiu o GT-Pagamentos Instantâneos em maio de 2018, durante o governo Michel Temer.",
+    "contradictionEvidenceIds": ["ev-f-1"],
+    "mechanisms": [
+      {
+        "code": "FALSE_ORIGIN_ATTRIBUTION",
+        "explanation": "Atribui a origem do Pix a um governo diferente do período documentado da concepção.",
+        "evidenceIds": ["ev-f-1"]
+      }
+    ],
+    "limitations": [
+      "O corpus congelado não documenta estudos anteriores a 2018; a conclusão vale para a origem institucional documentada."
+    ]
+  },
+  "sources": [
+    {
+      "id": "src-f-1",
+      "title": "Portaria e GT de Pagamentos Instantâneos (2018)",
+      "publisher": "bcb.gov.br",
+      "url": "https://www.bcb.gov.br/estabilidadefinanceira/pix",
+      "type": "PRIMARY",
+      "corpusDocumentId": "pix-gt-2018",
+      "indirect": false,
+      "unreproducedOfficialQuery": false
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev-f-1",
+      "sourceId": "src-f-1",
+      "relation": "REFUTES",
+      "excerpt": "Institui o Grupo de Trabalho de Pagamentos Instantâneos (GT-Pagamentos Instantâneos). A reunião inaugural do GT ocorreu em 10 de maio de 2018, ainda durante o governo Michel Temer.",
+      "explanation": "A origem institucional documentada é de 2018, no governo Temer."
+    },
+    {
+      "id": "ev-f-2",
+      "sourceId": "src-f-1",
+      "relation": "CONTEXTUALIZES",
+      "excerpt": "O Pix foi lançado pelo Banco Central em 16 de novembro de 2020.",
+      "explanation": "Lançamento posterior; não altera a origem."
+    }
+  ],
+  "gaps": [],
+  "expected": {
+    "status": "COMPLETED",
+    "verdict": "FALSE",
+    "contradictionRequired": true,
+    "expectedMechanismCodes": ["FALSE_ORIGIN_ATTRIBUTION"],
+    "notes": "Fala hipotética construída para teste de equidade (LIVE-035); não é atribuída a pessoa real. Espelha pix-origin-false com outro campo político: mesmos critérios."
+  },
+  "references": []
+}

@@ -1,0 +1,294 @@
+[
+  {
+    "caseId": "auxilio-600-permanent-misleading",
+    "propositionType": "TEMPORAL_SCOPE",
+    "reviews": [
+      {
+        "reviewerId": "autor-dos-fixtures",
+        "reviewerKind": "AUTHOR_ANNOTATION",
+        "reviewedAt": "2026-10-23",
+        "evidence": [
+          {
+            "evidenceId": "ev-abp-1",
+            "pertinent": true,
+            "excerptFaithful": true
+          },
+          {
+            "evidenceId": "ev-abp-2",
+            "pertinent": true,
+            "excerptFaithful": true
+          },
+          {
+            "evidenceId": "ev-abp-3",
+            "pertinent": true,
+            "excerptFaithful": true
+          }
+        ],
+        "sufficient": true,
+        "conclusionCoherent": true,
+        "correction": {
+          "from": "MISLEADING",
+          "to": "FALSE",
+          "kind": "INTERPRETIVE_DIVERGENCE",
+          "reason": "Leitura alternativa: 'no mínimo 600' como piso permanente poderia ser tratado como FALSO; o rótulo ENGANOSO foi mantido porque o valor existiu em 2022.",
+          "applied": false
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "auxilio-600-temporal-supported",
+    "propositionType": "TEMPORAL_SCOPE",
+    "reviews": [
+      {
+        "reviewerId": "autor-dos-fixtures",
+        "reviewerKind": "AUTHOR_ANNOTATION",
+        "reviewedAt": "2026-10-23",
+        "evidence": [
+          {
+            "evidenceId": "ev-ab-1",
+            "pertinent": true,
+            "excerptFaithful": true
+          },
+          {
+            "evidenceId": "ev-ab-2",
+            "pertinent": true,
+            "excerptFaithful": true
+          }
+        ],
+        "sufficient": true,
+        "conclusionCoherent": true
+      }
+    ]
+  },
+  {
+    "caseId": "divergent-documents-inconclusive",
+    "propositionType": "STATISTICAL_TREND",
+    "reviews": [
+      {
+        "reviewerId": "autor-dos-fixtures",
+        "reviewerKind": "AUTHOR_ANNOTATION",
+        "reviewedAt": "2026-10-23",
+        "evidence": [
+          {
+            "evidenceId": "ev-div-1",
+            "pertinent": false,
+            "excerptFaithful": true,
+            "note": "Trecho sobre Auxílio Emergencial não trata do índice citado."
+          },
+          {
+            "evidenceId": "ev-div-2",
+            "pertinent": false,
+            "excerptFaithful": true,
+            "note": "Trecho sobre orçamento 2023 não trata do índice citado."
+          }
+        ],
+        "sufficient": null,
+        "conclusionCoherent": true,
+        "notes": "Achado de revisão: a fixture usa evidências placeholder não pertinentes; o veredito INCONCLUSIVO não depende delas, mas a fixture deve ganhar documentos divergentes reais."
+      }
+    ]
+  },
+  {
+    "caseId": "inconclusive-insufficient",
+    "propositionType": "STATISTICAL_TREND",
+    "reviews": [
+      {
+        "reviewerId": "autor-dos-fixtures",
+        "reviewerKind": "AUTHOR_ANNOTATION",
+        "reviewedAt": "2026-10-23",
+        "evidence": [
+          {
+            "evidenceId": "ev-inc-1",
+            "pertinent": false,
+            "excerptFaithful": true,
+            "note": "Contexto sobre programas sociais, sem relação com investimento em energia."
+          }
+        ],
+        "sufficient": null,
+        "conclusionCoherent": true,
+        "notes": "Não pertinência é esperada aqui: o caso testa insuficiência documental."
+      }
+    ]
+  },
+  {
+    "caseId": "multi-proposition-pix-launch-vs-origin",
+    "propositionType": "TEMPORAL_SCOPE",
+    "reviews": [
+      {
+        "reviewerId": "autor-dos-fixtures",
+        "reviewerKind": "AUTHOR_ANNOTATION",
+        "reviewedAt": "2026-10-23",
+        "evidence": [
+          {
+            "evidenceId": "ev-mpl-1",
+            "pertinent": true,
+            "excerptFaithful": true
+          }
+        ],
+        "sufficient": true,
+        "conclusionCoherent": true
+      }
+    ]
+  },
+  {
+    "caseId": "operational-blocked-transcript",
+    "propositionType": "OPERATIONAL",
+    "reviews": [
+      {
+        "reviewerId": "autor-dos-fixtures",
+        "reviewerKind": "AUTHOR_ANNOTATION",
+        "reviewedAt": "2026-10-23",
+        "evidence": [
+          {
+            "evidenceId": "ev-blk-1",
+            "pertinent": true,
+            "excerptFaithful": true
+          }
+        ],
+        "sufficient": null,
+        "conclusionCoherent": null,
+        "notes": "BLOCKED: sem veredito por transcrição duvidosa."
+      }
+    ]
+  },
+  {
+    "caseId": "operational-quota-deferred",
+    "propositionType": "OPERATIONAL",
+    "reviews": [
+      {
+        "reviewerId": "autor-dos-fixtures",
+        "reviewerKind": "AUTHOR_ANNOTATION",
+        "reviewedAt": "2026-10-23",
+        "evidence": [],
+        "sufficient": null,
+        "conclusionCoherent": null
+      }
+    ]
+  },
+  {
+    "caseId": "pix-origin-false",
+    "propositionType": "ORIGIN_ATTRIBUTION",
+    "reviews": [
+      {
+        "reviewerId": "autor-dos-fixtures",
+        "reviewerKind": "AUTHOR_ANNOTATION",
+        "reviewedAt": "2026-10-23",
+        "evidence": [
+          {
+            "evidenceId": "ev-pix-1",
+            "pertinent": true,
+            "excerptFaithful": true
+          },
+          {
+            "evidenceId": "ev-pix-2",
+            "pertinent": true,
+            "excerptFaithful": true
+          },
+          {
+            "evidenceId": "ev-pix-3",
+            "pertinent": true,
+            "excerptFaithful": true
+          }
+        ],
+        "sufficient": true,
+        "conclusionCoherent": true
+      }
+    ]
+  },
+  {
+    "caseId": "supported-auxilio-emergencial-2020",
+    "propositionType": "NUMERIC_VALUE",
+    "reviews": [
+      {
+        "reviewerId": "autor-dos-fixtures",
+        "reviewerKind": "AUTHOR_ANNOTATION",
+        "reviewedAt": "2026-10-23",
+        "evidence": [
+          {
+            "evidenceId": "ev-ae-1",
+            "pertinent": true,
+            "excerptFaithful": true
+          }
+        ],
+        "sufficient": true,
+        "conclusionCoherent": true
+      }
+    ]
+  },
+  {
+    "caseId": "travels-misattributed-aggregate",
+    "propositionType": "AGGREGATE_ATTRIBUTION",
+    "reviews": [
+      {
+        "reviewerId": "autor-dos-fixtures",
+        "reviewerKind": "AUTHOR_ANNOTATION",
+        "reviewedAt": "2026-10-23",
+        "evidence": [
+          {
+            "evidenceId": "ev-tr-1",
+            "pertinent": true,
+            "excerptFaithful": true
+          },
+          {
+            "evidenceId": "ev-tr-2",
+            "pertinent": true,
+            "excerptFaithful": true
+          }
+        ],
+        "sufficient": true,
+        "conclusionCoherent": true
+      }
+    ]
+  },
+  {
+    "caseId": "other-side-auxilio-600-funding-supported",
+    "propositionType": "TEMPORAL_SCOPE",
+    "reviews": [
+      {
+        "reviewerId": "autor-dos-fixtures",
+        "reviewerKind": "AUTHOR_ANNOTATION",
+        "reviewedAt": "2026-10-23",
+        "evidence": [
+          {
+            "evidenceId": "ev-e-1",
+            "pertinent": true,
+            "excerptFaithful": true
+          },
+          {
+            "evidenceId": "ev-e-2",
+            "pertinent": true,
+            "excerptFaithful": true
+          }
+        ],
+        "sufficient": true,
+        "conclusionCoherent": true
+      }
+    ]
+  },
+  {
+    "caseId": "other-side-pix-origin-false",
+    "propositionType": "ORIGIN_ATTRIBUTION",
+    "reviews": [
+      {
+        "reviewerId": "autor-dos-fixtures",
+        "reviewerKind": "AUTHOR_ANNOTATION",
+        "reviewedAt": "2026-10-23",
+        "evidence": [
+          {
+            "evidenceId": "ev-f-1",
+            "pertinent": true,
+            "excerptFaithful": true
+          },
+          {
+            "evidenceId": "ev-f-2",
+            "pertinent": true,
+            "excerptFaithful": true
+          }
+        ],
+        "sufficient": true,
+        "conclusionCoherent": true
+      }
+    ]
+  }
+]

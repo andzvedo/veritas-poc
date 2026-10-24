@@ -1,0 +1,35 @@
+{
+  "id": "clean-auxilio-numbers-dates",
+  "title": "Fala limpa com valores, datas e negação",
+  "role": "CORPUS",
+  "condition": "CLEAN",
+  "media": {
+    "kind": "TEXT_SIMULATED",
+    "reference": "n/a (fixture textual; sem áudio)",
+    "offsetMs": 0,
+    "durationMs": 7200,
+    "window": { "sizeMs": 8000, "overlapMs": 1000 }
+  },
+  "reference": {
+    "text": "Em dezembro de 2022 o Auxílio Brasil pagou R$ 600 para 21,6 milhões de famílias, e esse valor não era permanente.",
+    "criticalTerms": [
+      { "text": "dezembro de 2022", "category": "DATE" },
+      { "text": "Auxílio Brasil", "category": "PROPER_NAME" },
+      { "text": "600", "category": "NUMBER", "accept": ["seiscentos"] },
+      { "text": "R$", "category": "UNIT", "accept": ["reais"] },
+      { "text": "21,6", "category": "NUMBER" },
+      { "text": "milhões", "category": "UNIT" },
+      { "text": "não", "category": "NEGATION" }
+    ],
+    "annotator": "anotação editorial do fixture (revisável)"
+  },
+  "hypothesis": {
+    "provenance": "SIMULATED",
+    "text": "em dezembro de 2022 o auxílio brasil pago R$ 600 para 21,6 milhões de famílias e esse valor não era permanente",
+    "model": "simulado (sem modelo)",
+    "hardware": "n/a",
+    "processingMs": 2100
+  },
+  "expected": { "criticalErrors": [] },
+  "notes": "Erro não crítico simulado: 'pagou' → 'pago'."
+}

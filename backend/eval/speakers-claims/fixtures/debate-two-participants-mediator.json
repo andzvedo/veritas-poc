@@ -1,0 +1,127 @@
+{
+  "id": "debate-two-participants-mediator",
+  "title": "Dois participantes e uma mediadora: interrupção, fala simultânea, repetição e erro de diarização",
+  "media": { "kind": "TEXT_SIMULATED", "reference": "n/a (diálogo textual anotado; sem áudio)" },
+  "diarizationProvenance": "SIMULATED",
+  "extractionProvenance": "SCRIPTED",
+  "participants": [
+    { "ref": "A", "name": "Participante A", "role": "PARTICIPANT" },
+    { "ref": "B", "name": "Participante B", "role": "PARTICIPANT" },
+    { "ref": "M", "name": "Mediadora", "role": "MEDIATOR" }
+  ],
+  "mapping": [
+    { "speakerLabel": "SPK_A", "participantRef": "A", "confirmed": true },
+    { "speakerLabel": "SPK_B", "participantRef": "B", "confirmed": true },
+    { "speakerLabel": "SPK_M", "participantRef": "M", "confirmed": false }
+  ],
+  "segments": [
+    {
+      "id": "s1", "startMs": 0, "endMs": 4000, "refSpeaker": "M",
+      "text": "Boa noite. Primeira pergunta: o que o senhor fará pelo emprego?",
+      "observations": [{ "speakerLabel": "SPK_M", "confidence": 0.93 }],
+      "extraction": [
+        { "originalQuote": "o que o senhor fará pelo emprego?", "normalizedClaim": "Pergunta da mediadora sobre emprego", "notFactCheckable": true }
+      ]
+    },
+    {
+      "id": "s2", "startMs": 4200, "endMs": 9800, "refSpeaker": "A",
+      "text": "Em 2022 o Auxílio Brasil pagou R$ 600 para 21 milhões de famílias.",
+      "observations": [{ "speakerLabel": "SPK_A", "confidence": 0.91 }],
+      "extraction": [
+        { "originalQuote": "Em 2022 o Auxílio Brasil pagou R$ 600 para 21 milhões de famílias", "normalizedClaim": "Em 2022 o Auxílio Brasil pagou R$ 600 para 21 milhões de famílias", "quantity": { "value": 600, "unit": "R$" }, "period": { "start": "2022" } }
+      ]
+    },
+    {
+      "id": "s3", "startMs": 10000, "endMs": 14500, "refSpeaker": "B",
+      "text": "Isso não é verdade, o valor de R$ 600 não era permanente.",
+      "observations": [{ "speakerLabel": "SPK_B", "confidence": 0.88 }],
+      "extraction": [
+        { "originalQuote": "o valor de R$ 600 não era permanente", "normalizedClaim": "O valor de R$ 600 do Auxílio Brasil em 2022 não era permanente", "quantity": { "value": 600, "unit": "R$" } }
+      ]
+    },
+    {
+      "id": "s4", "startMs": 14600, "endMs": 16000, "refSpeaker": "A",
+      "text": "O desemprego caiu para",
+      "overlapWith": [],
+      "observations": [{ "speakerLabel": "SPK_A", "confidence": 0.8 }],
+      "extraction": []
+    },
+    {
+      "id": "s5", "startMs": 16000, "endMs": 20500, "refSpeaker": "A",
+      "text": "O governo anterior cortou 30% do orçamento da educação em 2019.",
+      "overlapWith": ["B"],
+      "observations": [
+        { "speakerLabel": "SPK_A", "confidence": 0.6 },
+        { "speakerLabel": "SPK_B", "confidence": 0.55 }
+      ],
+      "extraction": [
+        { "originalQuote": "O governo anterior cortou 30% do orçamento da educação em 2019", "normalizedClaim": "O governo anterior cortou 30% do orçamento da educação em 2019", "quantity": { "value": 30, "unit": "%" }, "period": { "start": "2019" } }
+      ]
+    },
+    {
+      "id": "s6", "startMs": 21000, "endMs": 26000, "refSpeaker": "A",
+      "text": "Repito: em 2022 o Auxílio Brasil pagou R$ 600 para 21 milhões de famílias.",
+      "observations": [{ "speakerLabel": "SPK_A", "confidence": 0.9 }],
+      "extraction": [
+        { "originalQuote": "em 2022 o Auxílio Brasil pagou R$ 600 para 21 milhões de famílias", "normalizedClaim": "Em 2022 o Auxílio Brasil pagou R$ 600 para 21 milhões de famílias", "quantity": { "value": 600, "unit": "R$" }, "period": { "start": "2022" } }
+      ]
+    },
+    {
+      "id": "s7", "startMs": 26500, "endMs": 30000, "refSpeaker": "B",
+      "text": "O Pix foi criado pelo Banco Central em 2018.",
+      "observations": [{ "speakerLabel": "SPK_A", "confidence": 0.71 }],
+      "extraction": [
+        { "originalQuote": "O Pix foi criado pelo Banco Central em 2018", "normalizedClaim": "O Pix foi criado pelo Banco Central em 2018", "period": { "start": "2018" } }
+      ]
+    },
+    {
+      "id": "s8", "startMs": 30500, "endMs": 32000, "refSpeaker": "B",
+      "text": "Obrigado, boa noite a todos.",
+      "observations": [{ "speakerLabel": "SPK_B", "confidence": 0.9 }],
+      "extraction": []
+    },
+    {
+      "id": "s9", "startMs": 32500, "endMs": 38000, "refSpeaker": "B",
+      "text": "Eu também digo: em 2022 o Auxílio Brasil pagou R$ 600 para 21 milhões de famílias.",
+      "observations": [{ "speakerLabel": "SPK_B", "confidence": 0.87 }],
+      "extraction": [
+        { "originalQuote": "em 2022 o Auxílio Brasil pagou R$ 600 para 21 milhões de famílias", "normalizedClaim": "Em 2022 o Auxílio Brasil pagou R$ 600 para 21 milhões de famílias", "quantity": { "value": 600, "unit": "R$" }, "period": { "start": "2022" } }
+      ]
+    },
+    {
+      "id": "s10", "startMs": 38500, "endMs": 41000, "refSpeaker": "A",
+      "text": "Eu acho que o país está melhor.",
+      "observations": [{ "speakerLabel": "SPK_A", "confidence": 0.92 }],
+      "extraction": [
+        { "originalQuote": "o país está melhor", "normalizedClaim": "O país está melhor", "notFactCheckable": false }
+      ]
+    },
+    {
+      "id": "s11", "startMs": 41500, "endMs": 46000, "refSpeaker": "M",
+      "text": "Candidato B, o senhor disse que a inflação de 2021 foi de 10,06%?",
+      "observations": [{ "speakerLabel": "SPK_M", "confidence": 0.9 }],
+      "extraction": [
+        { "originalQuote": "o senhor disse que a inflação de 2021 foi de 10,06%?", "normalizedClaim": "Pergunta da mediadora sobre a inflação de 2021", "notFactCheckable": true }
+      ]
+    },
+    {
+      "id": "s12", "startMs": 46200, "endMs": 50000, "refSpeaker": "B",
+      "text": "Sim, e em 2022 ela caiu para 5,79%.",
+      "observations": [{ "speakerLabel": "SPK_B", "confidence": 0.89 }],
+      "extraction": []
+    }
+  ],
+  "goldClaims": [
+    { "id": "g1", "segmentId": "s1", "speakerRef": "M", "quote": "o que o senhor fará pelo emprego?", "kind": "NOT_FACT_CHECKABLE" },
+    { "id": "g2", "segmentId": "s2", "speakerRef": "A", "quote": "Em 2022 o Auxílio Brasil pagou R$ 600 para 21 milhões de famílias", "kind": "CHECKABLE" },
+    { "id": "g3", "segmentId": "s3", "speakerRef": "B", "quote": "o valor de R$ 600 não era permanente", "kind": "CHECKABLE", "requiresContextSegmentIds": ["s2"], "requiresContextText": "Auxílio Brasil", "notes": "'o valor' só se resolve com a fala anterior do participante A." },
+    { "id": "g4", "segmentId": "s4", "speakerRef": "A", "quote": "O desemprego caiu para", "kind": "INCOMPLETE", "notes": "Afirmação cortada: não pode virar claim verificável." },
+    { "id": "g5", "segmentId": "s5", "speakerRef": "A", "quote": "O governo anterior cortou 30% do orçamento da educação em 2019", "kind": "CHECKABLE", "notes": "Fala simultânea: a autoria deve ficar desconhecida." },
+    { "id": "g6", "segmentId": "s6", "speakerRef": "A", "quote": "em 2022 o Auxílio Brasil pagou R$ 600 para 21 milhões de famílias", "kind": "CHECKABLE", "duplicateOf": "g2" },
+    { "id": "g7", "segmentId": "s7", "speakerRef": "B", "quote": "O Pix foi criado pelo Banco Central em 2018", "kind": "CHECKABLE", "notes": "Erro de diarização simulado: rotulado como SPK_A." },
+    { "id": "g9", "segmentId": "s9", "speakerRef": "B", "quote": "em 2022 o Auxílio Brasil pagou R$ 600 para 21 milhões de famílias", "kind": "CHECKABLE", "duplicateOf": "g2", "notes": "Mesmo fato, outro autor: reusa investigação, mas a ocorrência e a autoria são distintas." },
+    { "id": "g10", "segmentId": "s10", "speakerRef": "A", "quote": "Eu acho que o país está melhor", "kind": "NOT_FACT_CHECKABLE", "notes": "Extrator roteirizado erra a triagem (falso positivo intencional)." },
+    { "id": "g11", "segmentId": "s11", "speakerRef": "M", "quote": "o senhor disse que a inflação de 2021 foi de 10,06%?", "kind": "NOT_FACT_CHECKABLE" },
+    { "id": "g12", "segmentId": "s12", "speakerRef": "B", "quote": "em 2022 ela caiu para 5,79%", "kind": "CHECKABLE", "requiresContextSegmentIds": ["s11"], "requiresContextText": "inflação", "notes": "Extrator roteirizado não extrai (falso negativo intencional)." }
+  ]
+}
