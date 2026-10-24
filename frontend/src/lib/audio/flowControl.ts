@@ -257,6 +257,40 @@ export class ChunkFlowController {
   }
 
   /**
+   * Drops an in-flight chunk **without retrying** and records it as a gap.
+   *
+   * Used when the backend rejected the chunk with a definitive reason (the
+   * session is not listening, it ended, the transport rate limit…): resending
+   * the same `chunkSeq` would be rejected again and only amplify traffic.
+   * Returns `null` for unknown/already settled chunks.
+   */
+  drop(chunkSeq: number, reason: string): ChunkFailureResult {
+    const chunk = this.inFlight.get(chunkSeq);
+
+    if (!chunk) {
+      return { action: 'ignored', chunk: null, attempts: 0, gap: null };
+    }
+
+    this.inFlight.delete(chunkSeq);
+    this.droppedChunks += 1;
+
+    const gap = this.pushGap({
+      fromSample: chunk.startSample,
+      toSample: chunk.startSample + chunk.samples,
+      samples: chunk.samples,
+      reason,
+      chunkSeqs: [chunk.chunkSeq],
+    });
+
+    return {
+      action: 'dropped',
+      chunk: this.describe(chunk),
+      attempts: chunk.attempts + 1,
+      gap,
+    };
+  }
+
+  /**
    * Removes and returns every unacked chunk (sorted by `chunkSeq`).
    *
    * Called when the capture is ending: the caller takes ownership of the

@@ -7,6 +7,11 @@
  * microphone is unplugged — only PCM audio chunks are forwarded.
  */
 
+import type {
+  AudioChunkRejectionReason,
+  LiveSessionErrorCode,
+  LiveSessionState,
+} from '@veritas/shared';
 import type { AudioChunkMetaPayload } from '@/lib/audio/audioStream';
 import { AudioChunker, AudioChunkerError } from '@/lib/audio/audioStream';
 import type { GapRange } from '@/lib/audio/flowControl';
@@ -33,7 +38,51 @@ export interface LiveSessionStartOptions {
   startCapture?: () => Promise<AudioCapture>;
   /** Injected for tests. */
   createChunker?: () => AudioChunker;
+  /** How long to wait for LIVE_SESSION_STARTED before giving up. */
+  startTimeoutMs?: number;
 }
+
+const DEFAULT_START_TIMEOUT_MS = 15_000;
+
+/**
+ * The backend refused or never confirmed the live session. `code` lets the UI
+ * show actionable, localized copy (e.g. TRANSCRIPTION_UNAVAILABLE).
+ */
+export class LiveSessionStartError extends Error {
+  readonly code: LiveSessionErrorCode | undefined;
+
+  constructor(message: string, code?: LiveSessionErrorCode) {
+    super(message);
+    this.name = 'LiveSessionStartError';
+    this.code = code;
+  }
+}
+
+export type ChunkAckAction = 'ack' | 'retry' | 'drop';
+
+/**
+ * What to do with an AUDIO_CHUNK_ACK.
+ * - `duplicate` / `overlap`: the server already holds that audio → settled.
+ * - any other explicit reason (`not_listening`, `ended`, `rate_limited`, …)
+ *   is definitive: resending the same chunk is rejected again and, at 10
+ *   chunks/s × 4 attempts, trips the server rate limit (the old gap storm).
+ * - no reason (legacy backend): bounded retry.
+ */
+export function classifyChunkAck(
+  accepted: boolean,
+  reason?: AudioChunkRejectionReason,
+): ChunkAckAction {
+  if (accepted) return 'ack';
+  if (reason === 'duplicate' || reason === 'overlap') return 'ack';
+  if (reason === undefined) return 'retry';
+  return 'drop';
+}
+
+const STARTED_STATES: ReadonlySet<LiveSessionState> = new Set([
+  'LISTENING',
+  'PAUSED',
+  'RECONNECTING',
+]);
 
 export type LiveSessionControllerPhase =
   | 'idle'
@@ -60,6 +109,7 @@ export class LiveSessionController {
   private unsubscribeAck: (() => void) | null = null;
   private unbindCaptureEnded: (() => void) | null = null;
   private unbindCaptureError: (() => void) | null = null;
+  private unsubscribeServerState: (() => void) | null = null;
   private lastCaptureError: MicCaptureError | null = null;
 
   getPhase(): LiveSessionControllerPhase {
@@ -112,20 +162,9 @@ export class LiveSessionController {
     }
 
     this.capture = capture;
-    store.setCaptureFeedback('capturing');
     store.update({ sessionId });
-
-    const chunker = options.createChunker?.() ?? new AudioChunker();
-    this.chunker = chunker;
-
-    this.unsubscribeAck = factCheckService.onAudioChunkAck((chunkSeq, accepted) => {
-      if (!this.chunker) return;
-      if (accepted) {
-        this.chunker.ack(chunkSeq);
-      } else {
-        this.chunker.fail(chunkSeq);
-      }
-    });
+    store.setLiveSessionState('CONNECTING');
+    store.setStatus('processing', 'CONNECTING');
 
     this.unbindCaptureEnded = capture.onEnded(() => {
       void this.handleCaptureEnded();
@@ -137,6 +176,58 @@ export class LiveSessionController {
         error.message,
       );
     });
+
+    // Ask the server first and wait for its answer: audio sent before the
+    // session exists is rejected (SESSION_NOT_FOUND, no ACK), and when the
+    // backend has no transcriber it refuses the session up front.
+    factCheckService.startLiveSession({
+      sessionId,
+      source: 'MIC',
+      language: options.language ?? 'pt-BR',
+      consent: true,
+      apiKeys: options.apiKeys,
+    });
+
+    try {
+      await this.waitForServerStart(
+        options.startTimeoutMs ?? DEFAULT_START_TIMEOUT_MS,
+      );
+    } catch (error) {
+      await this.teardownCapture({ flush: false });
+      this.phase = 'error';
+      this.sessionId = null;
+      const current = useFactCheckStore.getState();
+      if (current.liveSessionState !== 'ERROR') {
+        // Timeout / unexpected end: surface it as a coded session error.
+        current.setLiveSessionState('ERROR', {
+          reason: error instanceof Error ? error.message : String(error),
+          code: error instanceof LiveSessionStartError ? error.code : 'START_FAILED',
+        });
+      }
+      current.setCaptureFeedback('ended');
+      throw error;
+    }
+
+    const chunker = options.createChunker?.() ?? new AudioChunker();
+    this.chunker = chunker;
+
+    this.unsubscribeAck = factCheckService.onAudioChunkAck(
+      (chunkSeq, accepted, reason) => {
+        if (!this.chunker) return;
+        switch (classifyChunkAck(accepted, reason)) {
+          case 'ack':
+            // `duplicate`/`overlap` settle the slot too: the audio is there.
+            this.chunker.ack(chunkSeq);
+            return;
+          case 'retry':
+            this.chunker.fail(chunkSeq);
+            return;
+          case 'drop':
+            this.chunker.drop(chunkSeq, reason ?? 'rejected');
+            return;
+        }
+      },
+    );
 
     try {
       await chunker.start(capture.stream, {
@@ -151,22 +242,82 @@ export class LiveSessionController {
       });
     } catch (error) {
       await this.teardownCapture({ flush: false });
+      factCheckService.cancelLiveSession({ sessionId });
       this.handleCaptureStartError(error);
       throw error;
     }
 
-    factCheckService.startLiveSession({
-      sessionId,
-      source: 'MIC',
-      language: options.language ?? 'pt-BR',
-      consent: true,
-      apiKeys: options.apiKeys,
+    store.setCaptureFeedback('capturing');
+    this.unsubscribeServerState = useFactCheckStore.subscribe((next, prev) => {
+      if (next.liveSessionState === prev.liveSessionState) return;
+      if (next.liveSessionState === 'ERROR' || next.liveSessionState === 'ENDED') {
+        void this.handleServerTerminal(next.liveSessionState);
+      }
     });
-
-    store.setLiveSessionState('CONNECTING');
-    store.setStatus('processing', 'CONNECTING');
     this.phase = 'running';
     return sessionId;
+  }
+
+  /**
+   * Resolves on LIVE_SESSION_STARTED (server state LISTENING); rejects with
+   * the server's coded ERROR, an unexpected end, or a timeout.
+   */
+  private waitForServerStart(timeoutMs: number): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      let settled = false;
+      let unsubscribe: () => void = () => {};
+      const finish = (error?: Error) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        unsubscribe();
+        if (error) reject(error);
+        else resolve();
+      };
+      const check = (state: ReturnType<typeof useFactCheckStore.getState>) => {
+        const live = state.liveSessionState;
+        if (live !== null && STARTED_STATES.has(live)) {
+          finish();
+        } else if (live === 'ERROR') {
+          finish(
+            new LiveSessionStartError(
+              state.error ?? 'O servidor recusou a sessão ao vivo.',
+              state.liveErrorCode ?? undefined,
+            ),
+          );
+        } else if (live === 'ENDED') {
+          finish(
+            new LiveSessionStartError(
+              'A sessão ao vivo foi encerrada pelo servidor antes de começar.',
+              'START_FAILED',
+            ),
+          );
+        }
+      };
+      const timer = setTimeout(() => {
+        finish(
+          new LiveSessionStartError(
+            'O servidor não confirmou o início da sessão ao vivo a tempo.',
+            'START_FAILED',
+          ),
+        );
+      }, timeoutMs);
+      unsubscribe = useFactCheckStore.subscribe((state) => check(state));
+      check(useFactCheckStore.getState());
+    });
+  }
+
+  /**
+   * The server ended or failed the session while we were capturing (e.g. the
+   * transcriber died mid-session). Release the microphone right away instead
+   * of streaming chunks that will only be rejected (and become gaps).
+   */
+  private async handleServerTerminal(state: 'ERROR' | 'ENDED'): Promise<void> {
+    if (this.phase !== 'running' && this.phase !== 'paused') return;
+    this.phase = state === 'ERROR' ? 'error' : 'stopped';
+    this.sessionId = null;
+    await this.teardownCapture({ flush: false });
+    useFactCheckStore.getState().setCaptureFeedback('ended');
   }
 
   async pause(): Promise<void> {
@@ -292,6 +443,8 @@ export class LiveSessionController {
   }
 
   private async teardownCapture(options: { flush: boolean }): Promise<void> {
+    this.unsubscribeServerState?.();
+    this.unsubscribeServerState = null;
     this.unbindCaptureEnded?.();
     this.unbindCaptureEnded = null;
     this.unbindCaptureError?.();

@@ -815,10 +815,24 @@ export type LiveSessionStartedEvent = z.infer<
   typeof LIVE_SESSION_STARTED_EVENT_SCHEMA
 >;
 
+/**
+ * Stable machine-readable error codes for `LIVE_SESSION_STATE` = ERROR, so the
+ * UI can show a localized, actionable message instead of a generic error.
+ */
+export const LIVE_SESSION_ERROR_CODE_SCHEMA = z.enum([
+  'TRANSCRIPTION_UNAVAILABLE',
+  'TRANSCRIPTION_FAILED',
+  'SESSION_NOT_FOUND',
+  'RATE_LIMITED',
+  'START_FAILED',
+]);
+export type LiveSessionErrorCode = z.infer<typeof LIVE_SESSION_ERROR_CODE_SCHEMA>;
+
 export const LIVE_SESSION_STATE_DATA_SCHEMA = z.object({
   sessionId: z.string(),
   state: LIVE_SESSION_STATE_SCHEMA,
   reason: z.string().optional(),
+  code: LIVE_SESSION_ERROR_CODE_SCHEMA.optional(),
 });
 export const LIVE_SESSION_STATE_EVENT_SCHEMA = envelopeEvent(
   LIVE_SESSION_STATE_DATA_SCHEMA,
@@ -1022,10 +1036,29 @@ export type HumanReviewRecordedEvent = z.infer<
   typeof HUMAN_REVIEW_RECORDED_EVENT_SCHEMA
 >;
 
+/** Why the backend rejected a chunk (absent when `accepted` is true). */
+export const AUDIO_CHUNK_REJECTION_REASON_SCHEMA = z.enum([
+  'invalid',
+  'duplicate',
+  'overlap',
+  'paused',
+  'not_listening',
+  'ended',
+  'buffer_limit',
+  'pending_limit',
+  'duration_limit',
+  /** Dropped by the per-connection token bucket before reaching the session. */
+  'rate_limited',
+]);
+export type AudioChunkRejectionReason = z.infer<
+  typeof AUDIO_CHUNK_REJECTION_REASON_SCHEMA
+>;
+
 export const AUDIO_CHUNK_ACK_DATA_SCHEMA = z.object({
   sessionId: z.string(),
   chunkSeq: z.number().int(),
   accepted: z.boolean(),
+  reason: AUDIO_CHUNK_REJECTION_REASON_SCHEMA.optional(),
 });
 export const AUDIO_CHUNK_ACK_EVENT_SCHEMA = envelopeEvent(
   AUDIO_CHUNK_ACK_DATA_SCHEMA,

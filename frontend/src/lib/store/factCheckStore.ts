@@ -5,6 +5,7 @@ import type {
   LiveCaptureFeedback,
   LiveGapData,
   LiveMetricsData,
+  LiveSessionErrorCode,
   LiveSessionState,
   SessionSnapshotData,
   SpeakerMapping,
@@ -50,7 +51,7 @@ interface FactCheckStoreActions {
   ) => void;
   setLiveSessionState: (
     state: LiveSessionState | null,
-    extras?: { message?: string; reason?: string },
+    extras?: { message?: string; reason?: string; code?: LiveSessionErrorCode },
   ) => void;
   setCaptureFeedback: (feedback: LiveCaptureFeedback, error?: string) => void;
   pushLiveGap: (gap: LiveGapData) => void;
@@ -74,6 +75,7 @@ const initialState: FactCheckStoreState = {
   processedText: '',
   fingerprint: null,
   liveSessionState: null,
+  liveErrorCode: null,
   segments: [],
   speakerMappings: [],
   speakerMappingRevision: 0,
@@ -234,6 +236,8 @@ export const useFactCheckStore = create<FactCheckStore>((set, get) => ({
       ...state,
       liveSessionState,
       message: extras?.message ?? extras?.reason ?? state.message,
+      liveErrorCode:
+        liveSessionState === 'ERROR' ? (extras?.code ?? null) : null,
       ...(liveSessionState === 'ERROR'
         ? { status: 'error' as const, error: extras?.reason ?? state.error }
         : {}),
@@ -322,6 +326,7 @@ export const useFactCheckStore = create<FactCheckStore>((set, get) => ({
       speakerMappingRevision: 0,
       lastTranscriptAt: null,
       liveSessionState: null,
+      liveErrorCode: null,
       captureFeedback: 'idle',
     })),
 }));

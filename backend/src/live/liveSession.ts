@@ -21,12 +21,14 @@
  */
 import type {
   AudioChunkMeta,
+  AudioChunkRejectionReason as SharedAudioChunkRejectionReason,
   LiveMetricsData,
+  LiveSessionErrorCode,
   LiveSessionState,
   TranscriptSegment,
 } from '@veritas/shared';
 import { AUDIO_CHUNK_META_SCHEMA } from '@veritas/shared';
-import { redactSecrets } from '#/utils/security.js';
+import { redactClientMessage } from '#/utils/security.js';
 import {
   isSilence,
   SpeechSegmenter,
@@ -38,6 +40,7 @@ import type {
 } from './speakerIdentification.js';
 import {
   isAbortError,
+  TranscriptionUnavailableError,
   type TranscribedSegment,
   type TranscriptionProvider,
 } from './transcription.js';
@@ -154,18 +157,12 @@ export type LiveTranscriptEvent = {
 export type LiveStateEvent = {
   state: LiveSessionState;
   reason?: string;
+  /** Machine-readable cause when `state` is ERROR (localized by the UI). */
+  code?: LiveSessionErrorCode;
 };
 
-export type AudioChunkRejectionReason =
-  | 'invalid'
-  | 'duplicate'
-  | 'overlap'
-  | 'paused'
-  | 'not_listening'
-  | 'ended'
-  | 'buffer_limit'
-  | 'pending_limit'
-  | 'duration_limit';
+/** Single source of truth: the wire enum in `@veritas/shared`. */
+export type AudioChunkRejectionReason = SharedAudioChunkRejectionReason;
 
 export type AudioChunkAck = {
   sessionId: string;
@@ -660,21 +657,28 @@ export class LiveSession {
     }
   }
 
-  private setState(state: LiveSessionState, reason?: string): void {
+  private setState(
+    state: LiveSessionState,
+    reason?: string,
+    code?: LiveSessionErrorCode,
+  ): void {
     if (this.state === state) {
       return;
     }
     this.state = state;
-    const event: LiveStateEvent =
-      reason === undefined ? { state } : { state, reason };
+    const event: LiveStateEvent = {
+      state,
+      ...(reason === undefined ? {} : { reason }),
+      ...(code === undefined ? {} : { code }),
+    };
     this.safeNotify(this.onState, event);
   }
 
-  private fail(reason: string): void {
+  private fail(reason: string, code?: LiveSessionErrorCode): void {
     if (this.state === 'ENDING' || this.state === 'ENDED') {
       return;
     }
-    this.setState('ERROR', reason);
+    this.setState('ERROR', reason, code);
   }
 
   private rememberChunk(chunkSeq: number): void {
@@ -1001,7 +1005,12 @@ export class LiveSession {
         ? error.message
         : 'Falha ao transcrever a janela de áudio';
     // Never echo keys/audio in the client-facing state reason.
-    this.fail(redactSecrets(rawMessage));
+    this.fail(
+      redactClientMessage(rawMessage),
+      error instanceof TranscriptionUnavailableError
+        ? 'TRANSCRIPTION_UNAVAILABLE'
+        : 'TRANSCRIPTION_FAILED',
+    );
   }
 
   private async performEnd(reason: string): Promise<void> {

@@ -334,6 +334,17 @@ export interface TranslationKeys {
       | 'CAPTURE_FAILED',
       string
     >;
+    /** Server live-session errors, keyed by `LiveSessionErrorCode` (+ UNKNOWN). */
+    serverErrors: {
+      title: string;
+      detailLabel: string;
+      TRANSCRIPTION_UNAVAILABLE: string;
+      TRANSCRIPTION_FAILED: string;
+      SESSION_NOT_FOUND: string;
+      RATE_LIMITED: string;
+      START_FAILED: string;
+      UNKNOWN: string;
+    };
     transcript: {
       title: string;
       subtitle: string;

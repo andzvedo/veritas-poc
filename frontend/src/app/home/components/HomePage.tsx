@@ -13,13 +13,17 @@ import LiveSetupPanel, {
   type LiveStartRequest,
 } from '@/app/live/components/LiveSetupPanel';
 import LiveAudioControls from '@/app/live/components/LiveAudioControls';
+import LiveSessionErrorBanner from '@/app/live/components/LiveSessionErrorBanner';
 import { factCheckService } from '@/lib/services/factCheckService';
 import { useFactCheckStore } from '@/lib/store/factCheckStore';
 import { useApiKeys } from '@/lib/hooks/useApiKeys';
 import ApiSetupPage from '@/app/shared/components/ApiSetupPage';
 import { Button } from '@/app/shared/components/ui/button';
 import { useI18n } from '@/lib/i18n/I18nContext';
-import { liveSessionController } from '@/lib/live/liveSessionController';
+import {
+  LiveSessionStartError,
+  liveSessionController,
+} from '@/lib/live/liveSessionController';
 import type { LiveInputMode } from '@/lib/live/liveUiState';
 
 // Constante para o texto de exemplo
@@ -109,6 +113,9 @@ const HomePage: React.FC<HomePageProps> = ({ className, router: propRouter }) =>
       router.push('/live');
     } catch (error) {
       console.error('❌ Erro ao iniciar Live:', error);
+      // Server refusals (e.g. no transcriber) are explained inline by
+      // LiveSessionErrorBanner with actionable, localized copy.
+      if (error instanceof LiveSessionStartError) return;
       setToast({
         type: 'error',
         message:
@@ -295,6 +302,7 @@ const HomePage: React.FC<HomePageProps> = ({ className, router: propRouter }) =>
                       starting={startingLive}
                     />
                     <LiveAudioControls className="mt-1" />
+                    <LiveSessionErrorBanner className="mt-3" />
                   </>
                 )}
               </div>

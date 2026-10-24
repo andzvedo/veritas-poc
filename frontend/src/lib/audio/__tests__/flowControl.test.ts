@@ -300,3 +300,25 @@ test('ChunkFlowController: valida opções e amostras', () => {
   assert.throws(() => controller.beginChunk(1.5), RangeError);
   assert.throws(() => controller.registerGap('saturated', 0), RangeError);
 });
+
+test('ChunkFlowController: drop() libera a vaga sem retry e cria lacuna com o motivo', () => {
+  const controller = new ChunkFlowController({ maxInFlight: 2, maxRetries: 3 });
+  const [first] = fill(controller, 2);
+  assert.equal(controller.hasCapacity, false);
+
+  const result = controller.drop(first.chunkSeq, 'not_listening');
+
+  assert.equal(result.action, 'dropped');
+  assert.equal(controller.hasCapacity, true);
+  assert.equal(controller.droppedCount, 1);
+  assert.deepEqual(result.gap, {
+    fromSample: 0,
+    toSample: CHUNK_SAMPLES,
+    samples: CHUNK_SAMPLES,
+    reason: 'not_listening',
+    chunkSeqs: [first.chunkSeq],
+  });
+  // A late ACK / second drop for the same chunk is ignored.
+  assert.equal(controller.ack(first.chunkSeq), false);
+  assert.equal(controller.drop(first.chunkSeq, 'not_listening').action, 'ignored');
+});

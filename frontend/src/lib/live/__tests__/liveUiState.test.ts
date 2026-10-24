@@ -8,6 +8,7 @@ import {
   isLiveSessionActive,
   isResearchSaturated,
   isTranscriptDelayed,
+  liveServerErrorKey,
 } from '../liveUiState';
 
 test('deriveLiveControlAvailability: idle allows start only', () => {
@@ -134,4 +135,39 @@ test('isLiveSessionActive covers capture and server states', () => {
   assert.equal(isLiveSessionActive('LISTENING', 'idle'), true);
   assert.equal(isLiveSessionActive(null, 'capturing'), true);
   assert.equal(isLiveSessionActive('ENDED', 'ended'), false);
+});
+
+test('deriveLiveStatusView: server ERROR wins over local "capturing"', () => {
+  // Regression: the chip said "Escutando / Captura ativa" while the backend
+  // rejected every chunk because no transcriber was configured.
+  for (const captureFeedback of ['capturing', 'paused', 'ended', 'idle'] as const) {
+    const view = deriveLiveStatusView({
+      captureFeedback,
+      liveSessionState: 'ERROR',
+      liveMetrics: null,
+      lastTranscriptAt: null,
+      nowMs: 0,
+      hasGaps: true,
+    });
+    assert.equal(view.tone, 'error', captureFeedback);
+    assert.equal(view.messageKey, 'session_error', captureFeedback);
+    assert.equal(view.feedbackKeys.includes('capture_active'), false);
+  }
+});
+
+test('deriveLiveStatusView: local permission errors stay specific under ERROR', () => {
+  const view = deriveLiveStatusView({
+    captureFeedback: 'permission_error',
+    liveSessionState: 'ERROR',
+    liveMetrics: null,
+    lastTranscriptAt: null,
+    nowMs: 0,
+  });
+  assert.equal(view.messageKey, 'permission_error');
+});
+
+test('liveServerErrorKey: maps codes and falls back to UNKNOWN', () => {
+  assert.equal(liveServerErrorKey('TRANSCRIPTION_UNAVAILABLE'), 'TRANSCRIPTION_UNAVAILABLE');
+  assert.equal(liveServerErrorKey(null), 'UNKNOWN');
+  assert.equal(liveServerErrorKey(undefined), 'UNKNOWN');
 });

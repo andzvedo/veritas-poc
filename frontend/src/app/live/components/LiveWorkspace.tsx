@@ -11,6 +11,7 @@ import { useI18n } from '@/lib/i18n/I18nContext';
 import { liveSessionController } from '@/lib/live/liveSessionController';
 import LiveAudioControls from './LiveAudioControls';
 import LiveTranscript from './LiveTranscript';
+import LiveSessionErrorBanner from './LiveSessionErrorBanner';
 
 interface LiveWorkspaceProps {
   className?: string;
@@ -41,8 +42,12 @@ const LiveWorkspace: React.FC<LiveWorkspaceProps> = ({ className }) => {
     sessionId,
   );
 
+  // A live session ERROR is explained by LiveSessionErrorBanner; the results
+  // panel just stops waiting (no generic "Erro na Verificação" there).
   const panelStatus: 'loading' | 'partial' | 'complete' | 'error' =
-    status === 'error'
+    liveSessionState === 'ERROR'
+      ? 'complete'
+      : status === 'error'
       ? 'error'
       : status === 'finished' || liveSessionState === 'ENDED'
         ? 'complete'
@@ -144,6 +149,8 @@ const LiveWorkspace: React.FC<LiveWorkspaceProps> = ({ className }) => {
             className="hidden sm:flex"
           />
         </header>
+
+        <LiveSessionErrorBanner className="mb-5" />
 
         <div className="grid sm:hidden grid-cols-2 gap-1.5 p-1.5 mb-3 rounded-[11px] bg-[#ebe7f0]">
           <button

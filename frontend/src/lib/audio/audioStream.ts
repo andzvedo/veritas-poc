@@ -654,6 +654,24 @@ export class AudioChunker {
     return result;
   }
 
+  /**
+   * Drops a chunk the backend rejected for good (no retry) and reports the
+   * explicit gap through `onGap`.
+   */
+  drop(chunkSeq: number, reason: string): ChunkFailureResult {
+    const result = this.flow.drop(chunkSeq, reason);
+
+    if (result.action === 'dropped' && result.chunk) {
+      this.counters.chunksDropped += 1;
+      this.pendingBuffers.delete(result.chunk.chunkSeq);
+      if (result.gap) {
+        this.reportGap(result.gap);
+      }
+    }
+
+    return result;
+  }
+
   /** Snapshot of the pipeline state (safe to poll for the UI/metrics). */
   getMetrics(): AudioChunkerMetrics {
     return {
