@@ -391,29 +391,16 @@
       "title": "Transcrição",
       "subtitle": "Atualização contínua",
       "empty": "Aguardando a primeira fala…",
-      "unknownSpeaker": "Autoria desconhecida",
-      "unconfirmedSpeaker": "não confirmado",
       "speechTimeHint": "Horário da fala na captura (não do processamento)",
       "revisionConflict": "Conflito de revisão",
       "correct": "Corrigir fala",
       "correctLabel": "Texto corrigido do segmento",
       "saveCorrection": "Salvar correção",
-      "claimChip": "Afirmação",
-      "revision": "Rev. {{revision}}",
       "gapsNotice": "{{count}} lacuna(s) de áudio sinalizada(s) — trechos sem amostra não são inventados.",
-      "status": {
-        "PROVISIONAL": "Parcial",
-        "FINAL": "Definitivo",
-        "BLOCKED": "Bloqueado"
-      },
-      "uncertainty": {
-        "NUMBER": "Número incerto",
-        "NEGATION": "Negação incerta",
-        "SUBJECT": "Sujeito incerto",
-        "OVERLAP": "Sobreposição",
-        "LOW_CONFIDENCE": "Baixa confiança",
-        "TRANSCRIPTION_ERROR": "Erro de transcrição"
-      }
+      "speakerOrdinal": "Locutor {{n}}",
+      "speakerParticipant": "Participante",
+      "gapsBadge": "{{count}} lacuna(s)",
+      "claimLinkLabel": "Ver verificação da afirmação {{n}}"
     },
     "workspace": {
       "eyebrow": "Veritas / Escuta automática",
@@ -443,6 +430,15 @@
       "RATE_LIMITED": "Muitos eventos enviados ao servidor em pouco tempo. Aguarde alguns segundos e tente de novo.",
       "START_FAILED": "O servidor não confirmou o início da sessão ao vivo. Verifique se o backend está rodando e tente de novo.",
       "UNKNOWN": "A sessão ao vivo foi interrompida por um erro no servidor. Inicie uma nova escuta."
+    },
+    "gating": {
+      "title": "Fora da verificação",
+      "unknownAuthorship": "{{count}} fala(s) sem locutor confirmado não foram verificadas.",
+      "blocked": "{{count}} fala(s) bloqueada(s) para verificação.",
+      "uncertainNumber": "{{count}} fala(s) com número incerto na transcrição.",
+      "uncertainNegation": "{{count}} fala(s) com negação incerta na transcrição.",
+      "otherUncertain": "{{count}} fala(s) com baixa confiança na transcrição.",
+      "hint": "Confirme o locutor ou corrija a fala na transcrição para liberar a verificação."
     }
   }
 }

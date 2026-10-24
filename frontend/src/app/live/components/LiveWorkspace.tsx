@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import Header from '@/app/shared/components/Header';
@@ -12,6 +12,8 @@ import { liveSessionController } from '@/lib/live/liveSessionController';
 import LiveAudioControls from './LiveAudioControls';
 import LiveTranscript from './LiveTranscript';
 import LiveSessionErrorBanner from './LiveSessionErrorBanner';
+import LiveGatingNotice from './LiveGatingNotice';
+import { summarizeTranscriptGating } from '@/lib/live/transcriptView';
 
 interface LiveWorkspaceProps {
   className?: string;
@@ -35,6 +37,13 @@ const LiveWorkspace: React.FC<LiveWorkspaceProps> = ({ className }) => {
   const claims = useFactCheckStore((s) => s.claims);
   const status = useFactCheckStore((s) => s.status);
   const liveSessionState = useFactCheckStore((s) => s.liveSessionState);
+  const segments = useFactCheckStore((s) => s.segments);
+  const speakerMappings = useFactCheckStore((s) => s.speakerMappings);
+
+  const gatingSummary = useMemo(
+    () => summarizeTranscriptGating(segments, speakerMappings),
+    [segments, speakerMappings],
+  );
 
   const displayVerifications = selectDisplayVerifications(
     verifications,
@@ -186,7 +195,10 @@ const LiveWorkspace: React.FC<LiveWorkspaceProps> = ({ className }) => {
               'sm:block',
             )}
           >
-            <LiveTranscript onNavigateToClaim={handleNavigateToClaim} />
+            <LiveTranscript
+              selectedClaimId={selectedClaimId}
+              onNavigateToClaim={handleNavigateToClaim}
+            />
           </div>
           <div
             className={cn(
@@ -199,6 +211,12 @@ const LiveWorkspace: React.FC<LiveWorkspaceProps> = ({ className }) => {
               verifications={displayVerifications}
               selectedResultId={selectedClaimId}
               onResultClick={setSelectedClaimId}
+              notice={
+                <LiveGatingNotice
+                  summary={gatingSummary}
+                  strings={t.live.gating}
+                />
+              }
               className="rounded-[19px] border border-[#dfdbe5] bg-white shadow-[0_8px_36px_rgba(31,14,57,0.04)]"
             />
           </div>

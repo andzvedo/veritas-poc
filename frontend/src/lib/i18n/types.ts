@@ -349,22 +349,25 @@ export interface TranslationKeys {
       title: string;
       subtitle: string;
       empty: string;
-      unknownSpeaker: string;
-      unconfirmedSpeaker: string;
+      speakerOrdinal: string;
+      speakerParticipant: string;
       speechTimeHint: string;
       revisionConflict: string;
       correct: string;
       correctLabel: string;
       saveCorrection: string;
-      claimChip: string;
-      revision: string;
+      claimLinkLabel: string;
       gapsNotice: string;
-      status: {
-        PROVISIONAL: string;
-        FINAL: string;
-        BLOCKED: string;
-      };
-      uncertainty: Record<string, string>;
+      gapsBadge: string;
+    };
+    gating: {
+      title: string;
+      unknownAuthorship: string;
+      blocked: string;
+      uncertainNumber: string;
+      uncertainNegation: string;
+      otherUncertain: string;
+      hint: string;
     };
     workspace: {
       eyebrow: string;
