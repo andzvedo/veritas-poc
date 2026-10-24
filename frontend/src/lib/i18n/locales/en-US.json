@@ -433,6 +433,16 @@
       "DEVICE_DISCONNECTED": "The microphone was disconnected. Listening has ended; reconnect it and start again.",
       "NO_AUDIO_TRACK": "The microphone sent no audio. Try another microphone.",
       "CAPTURE_FAILED": "Could not access the microphone."
+    },
+    "serverErrors": {
+      "title": "The live session could not continue",
+      "detailLabel": "Server detail",
+      "TRANSCRIPTION_UNAVAILABLE": "Audio transcription is not configured on the backend, so no speech can be transcribed. Set up local whisper.cpp (WHISPER_CPP_MODEL pointing to a ggml .bin model and, if needed, WHISPER_CPP_BIN) or enable cloud transcription (ALLOW_CLOUD_TRANSCRIPTION=true + a Google key in Settings) in backend/.env, restart the backend and try again. Step by step in docs/HOW-TO-RUN-BACKEND.md.",
+      "TRANSCRIPTION_FAILED": "Audio transcription failed and the session was stopped. Check the backend log and start listening again.",
+      "SESSION_NOT_FOUND": "The server does not recognize this live session (it may have restarted). Start listening again.",
+      "RATE_LIMITED": "Too many events were sent to the server in a short time. Wait a few seconds and try again.",
+      "START_FAILED": "The server did not confirm the live session start. Make sure the backend is running and try again.",
+      "UNKNOWN": "The live session was interrupted by a server error. Start listening again."
     }
   }
 }

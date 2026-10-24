@@ -2,6 +2,7 @@ import { io, Socket } from 'socket.io-client';
 import CryptoJS from 'crypto-js';
 import type {
   AudioChunk,
+  AudioChunkRejectionReason,
   ClaimDetectedEvent,
   ClaimStatusUpdatedEvent,
   CorrectTranscript,
@@ -34,7 +35,12 @@ type RequestOptions = Partial<Omit<FactCheckRequest, 'fingerprint' | 'apiKeys'>>
   apiKeys?: { google?: string; tavily?: string };
 };
 
-export type AudioChunkAckListener = (chunkSeq: number, accepted: boolean) => void;
+export type AudioChunkAckListener = (
+  chunkSeq: number,
+  accepted: boolean,
+  /** Why the backend rejected it (absent on old backends / transport errors). */
+  reason?: AudioChunkRejectionReason,
+) => void;
 
 const pendingClaimId = (claimId: string) => `claim-pending-${claimId}`;
 
@@ -154,9 +160,16 @@ export class FactCheckService {
       if (!this.acceptEnvelope(event.envelope)) return;
       const store = useFactCheckStore.getState();
       store.update({ sessionId: event.data.sessionId });
+      if (event.data.state === 'ERROR' && event.data.code === 'RATE_LIMITED') {
+        // Throttling notice for control events: the session itself is still
+        // alive on the server, so it must not tear down the live UI.
+        store.update({ message: event.data.reason });
+        return;
+      }
       // ENDING = draining research — not the same as captura encerrada.
       store.setLiveSessionState(event.data.state, {
         reason: event.data.reason,
+        code: event.data.code,
         message:
           event.data.state === 'ENDING'
             ? (event.data.reason ?? 'Encerrando captura; drenando fila…')
@@ -208,7 +221,7 @@ export class FactCheckService {
     socket.on('AUDIO_CHUNK_ACK', (event) => {
       if (!this.acceptEnvelope(event.envelope)) return;
       for (const listener of this.audioChunkAckListeners) {
-        listener(event.data.chunkSeq, event.data.accepted);
+        listener(event.data.chunkSeq, event.data.accepted, event.data.reason);
       }
     });
 

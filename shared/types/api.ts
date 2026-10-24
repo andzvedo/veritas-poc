@@ -16,6 +16,7 @@ import type {
   LiveSessionControl,
   LiveSessionEndedEvent,
   LiveSessionStartedEvent,
+  LiveSessionErrorCode,
   LiveSessionState,
   LiveSessionStateEvent,
   ResumeSession,
@@ -192,6 +193,8 @@ export interface VerificationState {
   fingerprint: string | null;
   /** Server-authoritative live session state (LIVE-001/007). */
   liveSessionState: LiveSessionState | null;
+  /** Machine-readable cause of the last server `ERROR` state (actionable UI copy). */
+  liveErrorCode?: LiveSessionErrorCode | null;
   /** Progressive transcript segments (upsert by id+revision). */
   segments: TranscriptSegment[];
   /** Confirmed / provisional speaker name mappings. */

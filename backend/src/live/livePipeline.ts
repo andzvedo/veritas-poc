@@ -34,6 +34,7 @@ import {
   type HumanReviewRecord,
   type InvalidationCause,
   type LiveRetentionPolicy,
+  type LiveSessionErrorCode,
   type RevisionDiff,
   type RevisionRef,
   type SessionExportData,
@@ -51,6 +52,7 @@ import { extractClaims } from '#/analysis/claimExtraction.js';
 import { investigateClaim } from '#/analysis/textVerificationPipeline.js';
 import type { ResearchProvider } from '#/research/index.js';
 import {
+  redactClientMessage,
   redactSecrets,
   redactSecretText,
   safeErrorForLog,
@@ -382,7 +384,7 @@ export class LivePipeline {
         : { config: deps.sessionConfig }),
       now: () => this.now().getTime(),
       onState: (event) => {
-        this.emitState(event.state, event.reason);
+        this.emitState(event.state, event.reason, event.code);
       },
       onTranscript: (event) => {
         this.emitTranscript(event);
@@ -443,6 +445,22 @@ export class LivePipeline {
 
   handleAudioChunk(meta: AudioChunkMeta, pcm: Buffer): AudioChunkAck {
     return this.session.handleAudioChunk(meta, pcm);
+  }
+
+  /**
+   * Explicit rejection for a chunk dropped before reaching the session (e.g.
+   * the transport rate limit). Without it the client keeps the chunk in its
+   * bounded in-flight window forever and later audio turns into
+   * `saturated` gaps.
+   */
+  rejectAudioChunk(chunkSeq: number, reason: 'rate_limited'): void {
+    this.emitAck({
+      sessionId: this.sessionId,
+      chunkSeq,
+      accepted: false,
+      state: this.session.getState(),
+      reason,
+    });
   }
 
   async end(reason = 'requested'): Promise<void> {
@@ -802,11 +820,13 @@ export class LivePipeline {
   private emitState(
     state: ReturnType<LiveSession['getState']>,
     reason?: string,
+    code?: LiveSessionErrorCode,
   ): void {
     this.emitParsed('LIVE_SESSION_STATE', LIVE_SESSION_STATE_EVENT_SCHEMA, {
       sessionId: this.sessionId,
       state,
-      ...(reason === undefined ? {} : { reason: redactSecrets(reason) }),
+      ...(reason === undefined ? {} : { reason: redactClientMessage(reason) }),
+      ...(code === undefined ? {} : { code }),
     });
   }
 
@@ -862,6 +882,9 @@ export class LivePipeline {
       sessionId: ack.sessionId,
       chunkSeq: ack.chunkSeq,
       accepted: ack.accepted,
+      // The client needs the cause to decide between retry and drop: a
+      // `not_listening`/`ended` chunk must never be retried in a loop.
+      ...(ack.reason === undefined ? {} : { reason: ack.reason }),
     });
   }
 

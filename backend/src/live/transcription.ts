@@ -935,7 +935,8 @@ export const DEFAULT_UNAVAILABLE_TRANSCRIPTION_MESSAGE =
 export class UnavailableTranscriptionProvider implements TranscriptionProvider {
   readonly name = 'unavailable';
 
-  private readonly reason: string;
+  /** Actionable, secret-free explanation (shown to the user at START). */
+  readonly reason: string;
 
   constructor(reason = DEFAULT_UNAVAILABLE_TRANSCRIPTION_MESSAGE) {
     this.reason = reason;

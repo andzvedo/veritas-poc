@@ -119,6 +119,20 @@ const redactValue = (
 export const redactSecretText = (value: string): string =>
   scrubSecretValues(value);
 
+/** Upper bound for a user-facing error/state reason sent to the browser. */
+export const MAX_CLIENT_MESSAGE_LENGTH = 1_000;
+
+/**
+ * Scrubs credentials from a message shown to the user. Unlike
+ * {@link redactSecrets} it keeps actionable text (env var names, next steps)
+ * that the 200-char log cap used to cut off; still bounded.
+ */
+export const redactClientMessage = (value: string): string =>
+  capTo(scrubSecretValues(value), MAX_CLIENT_MESSAGE_LENGTH);
+
+const capTo = (value: string, max: number): string =>
+  value.length <= max ? value : `${value.slice(0, max)}${TRUNCATED}`;
+
 export function redactSecrets(value: string): string;
 export function redactSecrets(value: unknown): unknown;
 export function redactSecrets(value: unknown): unknown {

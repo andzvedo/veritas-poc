@@ -1,6 +1,7 @@
 import type {
   LiveCaptureFeedback,
   LiveMetricsData,
+  LiveSessionErrorCode,
   LiveSessionState,
   TranscriptSegment,
 } from '@veritas/shared';
@@ -173,6 +174,18 @@ export function deriveLiveStatusView(input: DeriveLiveStatusInput): LiveStatusVi
     feedbackKeys.push('transcript_delayed');
   }
 
+  // A server ERROR wins over local capture feedback: the browser may still
+  // think it is "capturing" while the backend already rejects every chunk
+  // (e.g. no transcriber). Showing "Escutando" there hid the real failure.
+  if (
+    input.liveSessionState === 'ERROR' &&
+    input.captureFeedback !== 'permission_error' &&
+    input.captureFeedback !== 'unsupported' &&
+    input.captureFeedback !== 'requesting_permission'
+  ) {
+    return { tone: 'error', messageKey: 'session_error', feedbackKeys };
+  }
+
   switch (input.captureFeedback) {
     case 'requesting_permission':
       return { tone: 'running', messageKey: 'requesting_permission', feedbackKeys };
@@ -268,4 +281,13 @@ export function mapCaptureErrorMessage(
     messageKey: feedback,
     fallback,
   };
+}
+
+export type LiveServerErrorKey = LiveSessionErrorCode | 'UNKNOWN';
+
+/** i18n key under `t.live.serverErrors` for a server session error code. */
+export function liveServerErrorKey(
+  code: LiveSessionErrorCode | null | undefined,
+): LiveServerErrorKey {
+  return code ?? 'UNKNOWN';
 }

@@ -10,10 +10,14 @@ import LiveSetupPanel, {
   type LiveStartRequest,
 } from '@/app/live/components/LiveSetupPanel';
 import LiveAudioControls from '@/app/live/components/LiveAudioControls';
+import LiveSessionErrorBanner from '@/app/live/components/LiveSessionErrorBanner';
 import { factCheckService } from '@/lib/services/factCheckService';
 import { useApiKeys } from '@/lib/hooks/useApiKeys';
 import { useI18n } from '@/lib/i18n/I18nContext';
-import { liveSessionController } from '@/lib/live/liveSessionController';
+import {
+  LiveSessionStartError,
+  liveSessionController,
+} from '@/lib/live/liveSessionController';
 import type { LiveInputMode } from '@/lib/live/liveUiState';
 
 const EXAMPLE_FACT_CHECK_TEXT =
@@ -83,6 +87,8 @@ export default function VerificationPage() {
       router.push('/live');
     } catch (error) {
       console.error('❌ Erro ao iniciar Live:', error);
+      // Explained inline by LiveSessionErrorBanner (actionable, localized).
+      if (error instanceof LiveSessionStartError) return;
       alert(error instanceof Error ? error.message : t.errors.internalError);
     } finally {
       setStartingLive(false);
@@ -133,6 +139,7 @@ export default function VerificationPage() {
             <div className="w-full flex flex-col gap-3">
               <LiveSetupPanel onStart={handleStartLive} starting={startingLive} />
               <LiveAudioControls />
+              <LiveSessionErrorBanner />
             </div>
           )}
         </div>

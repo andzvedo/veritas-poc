@@ -6,6 +6,7 @@
  * Whisper.cpp / real audio are not exercised here — providers are injectable
  * (tests use scripted transcription fixtures).
  */
+import { randomUUID } from 'node:crypto';
 import type { Socket } from 'socket.io';
 import {
   AUDIO_CHUNK_SCHEMA,
@@ -21,6 +22,7 @@ import {
   SUBMIT_HUMAN_REVIEW_SCHEMA,
   UPDATE_SPEAKER_MAPPING_SCHEMA,
   type ClientToServerEvents,
+  type LiveSessionErrorCode,
   type ServerToClientEvents,
 } from '@veritas/shared';
 import { getAdvancedLLM, getLiteLLM } from '#/llm/index.js';
@@ -44,7 +46,11 @@ import {
   liveSessionRegistry,
 } from '#/live/sessionRegistry.js';
 import { RevisionConflictError } from '#/live/revisionLedger.js';
-import { createTranscriptionProvider } from '#/live/transcription.js';
+import {
+  createTranscriptionProvider,
+  DEFAULT_UNAVAILABLE_TRANSCRIPTION_MESSAGE,
+  UnavailableTranscriptionProvider,
+} from '#/live/transcription.js';
 import { SpeechSegmenterError } from '#/live/speechSegments.js';
 import {
   DEFAULT_LIVE_RATE_LIMITS,
@@ -52,7 +58,7 @@ import {
   type LiveRateLimits,
 } from '#/utils/rateLimit.js';
 import { createTavilyProvider } from '#/research/tavily.js';
-import { redactSecrets, safeErrorForLog } from '#/utils/security.js';
+import { redactClientMessage, safeErrorForLog } from '#/utils/security.js';
 
 export type LiveHandlersOptions = {
   /** Override registry (tests). Defaults to the process-wide singleton. */
@@ -82,11 +88,14 @@ const emitLiveError = (
   socket: LiveSocket,
   sessionId: string | undefined,
   message: string,
+  code?: LiveSessionErrorCode,
 ): void => {
   socket.emit('LIVE_SESSION_STATE', {
     envelope: {
       protocolVersion: 1,
-      eventId: `err-${Date.now().toString(36)}`,
+      // Unique per emission: the client dedupes by eventId, and two errors in
+      // the same millisecond must not collapse into one.
+      eventId: `err-${Date.now().toString(36)}-${randomUUID().slice(0, 8)}`,
       ...(sessionId === undefined ? {} : { sessionId }),
       eventSeq: 0,
       emittedAt: new Date().toISOString(),
@@ -94,7 +103,8 @@ const emitLiveError = (
     data: {
       sessionId: sessionId ?? 'unknown',
       state: 'ERROR',
-      reason: redactSecrets(message),
+      reason: redactClientMessage(message),
+      ...(code === undefined ? {} : { code }),
     },
   });
 };
@@ -185,6 +195,7 @@ const requireOwned = (
       socket,
       sessionId,
       'Sessão ao vivo não encontrada ou sem autorização nesta conexão.',
+      'SESSION_NOT_FOUND',
     );
     return undefined;
   }
@@ -251,6 +262,7 @@ export function attachLiveSessionHandlers(
         socket,
         sessionIdOf(payload),
         'Limite de eventos excedido nesta conexão; aguarde antes de reenviar.',
+        'RATE_LIMITED',
       );
     }
     return false;
@@ -299,15 +311,30 @@ export function attachLiveSessionHandlers(
           googleApiKey: googleKey.length > 0 ? googleKey : undefined,
           env,
         });
+        const overrides = options.pipelineOverrides ?? {};
+        const effectiveTranscription = overrides.transcription ?? transcription;
+        // Fail fast with an actionable message: starting a session without a
+        // transcriber only turned every window into a silent gap (and every
+        // later chunk into a rejected retry) before this check existed.
+        if (!(await effectiveTranscription.isAvailable())) {
+          emitLiveError(
+            socket,
+            data.sessionId,
+            effectiveTranscription instanceof UnavailableTranscriptionProvider
+              ? effectiveTranscription.reason
+              : DEFAULT_UNAVAILABLE_TRANSCRIPTION_MESSAGE,
+            'TRANSCRIPTION_UNAVAILABLE',
+          );
+          return;
+        }
         const diarization = createDiarization(env);
 
-        const overrides = options.pipelineOverrides ?? {};
         const pipeline = new LivePipeline({
           sessionId: data.sessionId,
           ownerSocketId: socket.id,
           source: data.source,
           language: data.language,
-          transcription: overrides.transcription ?? transcription,
+          transcription: effectiveTranscription,
           diarization: overrides.diarization ?? diarization,
           emit: bindEmit(socket),
           apiKeys: {
@@ -345,7 +372,7 @@ export function attachLiveSessionHandlers(
           error instanceof LiveSessionStateError
             ? error.message
             : 'Não foi possível iniciar a sessão ao vivo.';
-        emitLiveError(socket, data.sessionId, message);
+        emitLiveError(socket, data.sessionId, message, 'START_FAILED');
       }
     })().catch((error: unknown) => {
       emitLiveError(
@@ -359,7 +386,16 @@ export function attachLiveSessionHandlers(
   socket.on(
     'AUDIO_CHUNK',
     guard('AUDIO_CHUNK', (payload: unknown, audio: unknown) => {
-      if (!allow('audio', payload)) {
+      if (!buckets.audio.tryTake()) {
+        // Never drop audio silently: an un-ACKed chunk pins a slot of the
+        // client's in-flight window forever. Reject it explicitly (owner only)
+        // so the client records one gap and moves on. Not a session ERROR.
+        const limited = AUDIO_CHUNK_SCHEMA.safeParse(payload);
+        if (limited.success) {
+          registry
+            .getOwned(limited.data.sessionId, socket.id)
+            ?.rejectAudioChunk(limited.data.chunkSeq, 'rate_limited');
+        }
         return;
       }
       const parsed = AUDIO_CHUNK_SCHEMA.safeParse(payload);

@@ -433,6 +433,16 @@
       "DEVICE_DISCONNECTED": "O microfone foi desconectado. A escuta foi encerrada; conecte o microfone e inicie de novo.",
       "NO_AUDIO_TRACK": "O microfone não enviou áudio. Tente outro microfone.",
       "CAPTURE_FAILED": "Não foi possível acessar o microfone."
+    },
+    "serverErrors": {
+      "title": "A sessão ao vivo não pôde continuar",
+      "detailLabel": "Detalhe do servidor",
+      "TRANSCRIPTION_UNAVAILABLE": "A transcrição de áudio não está configurada no backend, então nenhuma fala pode ser transcrita. Configure o whisper.cpp local (WHISPER_CPP_MODEL apontando para um modelo ggml .bin e, se preciso, WHISPER_CPP_BIN) ou habilite a transcrição em nuvem (ALLOW_CLOUD_TRANSCRIPTION=true + chave Google em Configurações) no backend/.env, reinicie o backend e tente de novo. Passo a passo em docs/HOW-TO-RUN-BACKEND.md.",
+      "TRANSCRIPTION_FAILED": "A transcrição do áudio falhou e a sessão foi interrompida. Verifique o log do backend e inicie uma nova escuta.",
+      "SESSION_NOT_FOUND": "O servidor não reconhece esta sessão ao vivo (ele pode ter reiniciado). Inicie uma nova escuta.",
+      "RATE_LIMITED": "Muitos eventos enviados ao servidor em pouco tempo. Aguarde alguns segundos e tente de novo.",
+      "START_FAILED": "O servidor não confirmou o início da sessão ao vivo. Verifique se o backend está rodando e tente de novo.",
+      "UNKNOWN": "A sessão ao vivo foi interrompida por um erro no servidor. Inicie uma nova escuta."
     }
   }
 }

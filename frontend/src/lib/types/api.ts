@@ -34,6 +34,7 @@ export {
   type Claim,
   type LiveGapData,
   type LiveMetricsData,
+  type LiveSessionErrorCode,
   type LiveSessionState,
   type SpeakerMapping,
   type TranscriptSegment,
