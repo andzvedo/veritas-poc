@@ -15,6 +15,7 @@ import {
   emitUpdateStatus,
   handleWebSocketError,
 } from '#/ws/index.js';
+import { attachLiveSessionHandlers } from '#/ws/liveHandlers.js';
 import compression from 'compression';
 import cors from 'cors';
 import express from 'express';
@@ -79,6 +80,9 @@ createWebSocketServer(
     socket.on('disconnect', () => {
       abortActiveFactCheck('client disconnected');
     });
+
+    // Live capture: audio → transcript → claims → evidence (LIVE-006/009–013).
+    attachLiveSessionHandlers(socket);
 
     // Handle fact check requests
     socket.on('REQUEST_FACT_CHECK', async (content, data) => {

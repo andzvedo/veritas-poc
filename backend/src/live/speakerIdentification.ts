@@ -517,3 +517,19 @@ export class SpeakerRegistry {
 export function windowDurationMs(pcm: Buffer, sampleRate = 16000): number {
   return samplesToMs(Math.floor(pcm.length / 2), sampleRate);
 }
+
+/**
+ * Resolves the diarization adapter for a live session.
+ *
+ * Prefer a local/self-hosted pyannote HTTP endpoint when `PYANNOTE_URL` is set;
+ * otherwise keep authorship unknown (never invent names from content or turns).
+ */
+export function createDiarizationProvider(
+  env: NodeJS.ProcessEnv = process.env,
+): DiarizationProvider {
+  const url = env['PYANNOTE_URL']?.trim();
+  if (url !== undefined && url.length > 0) {
+    return new PyannoteHttpAdapter({ env });
+  }
+  return new UnknownSpeakerProvider();
+}

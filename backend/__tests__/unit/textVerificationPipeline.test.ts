@@ -301,7 +301,7 @@ describe('legacy confidence is not a research gate', () => {
     // have skipped research. The new path always retrieves.
     const pretendedConfidence = 0.1;
     const researchThreshold = 0.9;
-    expect(pretendedConfidence > researchThreshold).toBe(false);
+    expect(pretendedConfidence).toBeLessThan(researchThreshold);
 
     await investigateClaim({
       claim: FACT_CHECKABLE_CLAIM,
