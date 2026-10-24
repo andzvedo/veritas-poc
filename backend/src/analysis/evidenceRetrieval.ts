@@ -321,6 +321,15 @@ export async function retrieveEvidence(
     documents[source.id] = content;
   }
 
+  // A partial result after budget exhaustion is not complete research. Do not
+  // let it reach evaluation and become a factual verdict.
+  if (failures.some((failure) => failure.kind === 'QUOTA')) {
+    throw new ResearchError(
+      'QUOTA',
+      'Orçamento de pesquisa esgotado durante a recuperação dos documentos.',
+    );
+  }
+
   // If every candidate failed at the provider boundary, preserve that as an
   // operational failure. An empty evidence set caused by provider outage is
   // not the same as a successful search that found no useful evidence.

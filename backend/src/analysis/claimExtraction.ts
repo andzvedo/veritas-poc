@@ -1,5 +1,6 @@
 import { ParsingError, ValidationError } from '#/utils/errors.js';
 import { sanitizeJsonForTemplate } from '#/utils/llm.js';
+import type { LlmUsageBudget } from '#/llm/budget.js';
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { CLAIM_SCHEMA, type AtomicClaim, type Claim } from '@veritas/shared';
@@ -85,6 +86,8 @@ export type ExtractClaimsArgs = {
   source: ExtractionSource;
   /** Stable id prefix so the same extraction can be reproduced in tests. */
   fingerprint?: string;
+  /** Optional per-session live quota; text mode remains unlimited. */
+  usageBudget?: LlmUsageBudget;
 };
 
 export type ExtractionPromptInput = {
@@ -252,6 +255,7 @@ export async function extractClaims({
   llm,
   source,
   fingerprint,
+  usageBudget,
 }: ExtractClaimsArgs): Promise<Claim[]> {
   if (text.trim().length === 0) {
     throw new ValidationError('extractClaims requires a non-empty text.');
@@ -265,6 +269,7 @@ export async function extractClaims({
   const messages = await EXTRACTION_PROMPT.formatMessages(
     promptValues({ text, context }),
   );
+  usageBudget?.consume();
   const response = await llm.invoke(messages);
   const extracted = parseExtractionResponse(response.text);
 

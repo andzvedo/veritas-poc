@@ -51,6 +51,12 @@ import { ResearchError } from '#/research/types.js';
 import { extractClaims } from '#/analysis/claimExtraction.js';
 import { investigateClaim } from '#/analysis/textVerificationPipeline.js';
 import type { ResearchProvider } from '#/research/index.js';
+import { withResearchBudget } from '#/research/budget.js';
+import {
+  createLiveUsageBudgets,
+  type LiveUsageBudgetOptions,
+  type LiveUsageBudgets,
+} from './usageBudget.js';
 import {
   redactClientMessage,
   redactSecrets,
@@ -143,6 +149,8 @@ export type LivePipelineDeps = {
   /** Advanced model for evidence evaluation / verdict. */
   evaluationLlm?: BaseChatModel;
   researchProvider?: ResearchProvider;
+  /** Per-session hard caps. Defaults are finite and may be overridden by env. */
+  usageBudgetOptions?: LiveUsageBudgetOptions;
   apiKeys?: LivePipelineApiKeys;
   sessionConfig?: Partial<LiveSessionConfig>;
   /** Injected for tests; defaults to real extractClaims. */
@@ -152,6 +160,7 @@ export type LivePipelineDeps = {
     claim: Claim;
     evaluationLlm: BaseChatModel;
     researchProvider: ResearchProvider;
+    usageBudget?: LiveUsageBudgets['llm'];
     signal?: AbortSignal;
   }) => Promise<Verification>;
   now?: () => Date;
@@ -243,6 +252,7 @@ async function defaultInvestigate(args: {
   claim: Claim;
   evaluationLlm: BaseChatModel;
   researchProvider: ResearchProvider;
+  usageBudget?: LiveUsageBudgets['llm'];
   signal?: AbortSignal;
 }): Promise<Verification> {
   const data = await investigateClaim({
@@ -250,6 +260,7 @@ async function defaultInvestigate(args: {
     extractionChunkIndex: 0,
     evaluationLlm: args.evaluationLlm,
     researchProvider: args.researchProvider,
+    usageBudget: args.usageBudget,
     signal: args.signal,
   });
   if (data.verification !== undefined) {
@@ -307,6 +318,7 @@ export class LivePipeline {
   private readonly extractionLlm: BaseChatModel | undefined;
   private readonly evaluationLlm: BaseChatModel | undefined;
   private readonly researchProvider: ResearchProvider | undefined;
+  private readonly usageBudgets: LiveUsageBudgets;
   private readonly extractClaimsFn: typeof extractClaims;
   private readonly investigateClaimFn: LivePipelineDeps['investigateClaimFn'];
   private readonly now: () => Date;
@@ -336,7 +348,11 @@ export class LivePipeline {
     this.emit = deps.emit;
     this.extractionLlm = deps.extractionLlm;
     this.evaluationLlm = deps.evaluationLlm;
-    this.researchProvider = deps.researchProvider;
+    this.usageBudgets = createLiveUsageBudgets(deps.usageBudgetOptions);
+    this.researchProvider =
+      deps.researchProvider === undefined
+        ? undefined
+        : withResearchBudget(deps.researchProvider, this.usageBudgets.research);
     this.extractClaimsFn = deps.extractClaimsFn ?? extractClaims;
     this.investigateClaimFn = deps.investigateClaimFn ?? defaultInvestigate;
     this.now = deps.now ?? (() => new Date());
@@ -870,10 +886,16 @@ export class LivePipeline {
 
   private emitMetrics(metrics: LiveMetric): void {
     const queueMetrics = this.queue.getMetrics();
+    const llmUsage = this.usageBudgets.llm.snapshot();
+    const researchUsage = this.usageBudgets.research.snapshot();
     this.emitParsed('LIVE_METRICS', LIVE_METRICS_EVENT_SCHEMA, {
       ...metrics,
       queueDepth: metrics.queueDepth + queueMetrics.queued,
       deferred: queueMetrics.deferred,
+      llmCallsUsed: llmUsage.calls,
+      researchCallsUsed: researchUsage.calls,
+      // Usage units are estimates, not provider billing data.
+      creditsUsed: llmUsage.estimatedCredits + researchUsage.estimatedCredits,
     });
   }
 
@@ -938,7 +960,9 @@ export class LivePipeline {
       .catch((error: unknown) => {
         this.emitMetrics({
           sessionId: this.sessionId,
-          stage: 'claim_extraction_error',
+          stage: isQuotaError(error)
+            ? 'claim_extraction_deferred'
+            : 'claim_extraction_error',
           latencyMs: 0,
           queueDepth: this.queue.getMetrics().queued,
           deferred: this.queue.getMetrics().deferred,
@@ -947,7 +971,9 @@ export class LivePipeline {
           this.session.getState(),
           redactSecrets(
             error instanceof Error
-              ? error.message
+              ? isQuotaError(error)
+                ? 'Orçamento de processamento esgotado; extração adiada.'
+                : error.message
               : 'Falha na extração de claims',
           ),
         );
@@ -1002,6 +1028,7 @@ export class LivePipeline {
         timestampMs: { start: segment.startMs, end: segment.endMs },
       },
       fingerprint: `${this.sessionId}-${segment.id}-r${String(segment.revision)}`,
+      usageBudget: this.usageBudgets.llm,
     });
     // The segment or its context may have been corrected during extraction.
     const latestSegment = this.segmenter.getSegment(segment.id);
@@ -1162,6 +1189,7 @@ export class LivePipeline {
             claim: current(),
             evaluationLlm,
             researchProvider,
+            usageBudget: this.usageBudgets.llm,
             signal,
           });
         },

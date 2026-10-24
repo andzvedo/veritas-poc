@@ -969,6 +969,8 @@ export const LIVE_METRICS_DATA_SCHEMA = z.object({
   queueDepth: z.number(),
   deferred: z.number(),
   creditsUsed: z.number().optional(),
+  llmCallsUsed: z.number().int().nonnegative().optional(),
+  researchCallsUsed: z.number().int().nonnegative().optional(),
 });
 export const LIVE_METRICS_EVENT_SCHEMA = envelopeEvent(
   LIVE_METRICS_DATA_SCHEMA,

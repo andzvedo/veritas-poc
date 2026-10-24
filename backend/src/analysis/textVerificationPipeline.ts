@@ -12,6 +12,7 @@ import { evaluateEvidence } from '#/analysis/evidenceEvaluation.js';
 import { retrieveEvidence } from '#/analysis/evidenceRetrieval.js';
 import { generateVerification } from '#/analysis/verdictGeneration.js';
 import { LlmError } from '#/llm/index.js';
+import type { LlmUsageBudget } from '#/llm/budget.js';
 import {
   ResearchError,
   type ResearchProvider,
@@ -33,6 +34,7 @@ export type TextVerificationPipelineArgs = {
   researchProvider: ResearchProvider;
   signal?: AbortSignal;
   now?: () => Date;
+  usageBudget?: LlmUsageBudget;
 };
 
 export type InvestigateClaimArgs = {
@@ -42,6 +44,7 @@ export type InvestigateClaimArgs = {
   researchProvider: ResearchProvider;
   signal?: AbortSignal;
   now?: () => Date;
+  usageBudget?: LlmUsageBudget;
 };
 
 function throwIfAborted(signal: AbortSignal | undefined): void {
@@ -162,7 +165,14 @@ function toFactCheckResult(
 export async function investigateClaim(
   args: InvestigateClaimArgs,
 ): Promise<FactCheckResult['data']> {
-  const { claim, evaluationLlm, researchProvider, signal, now } = args;
+  const {
+    claim,
+    evaluationLlm,
+    researchProvider,
+    signal,
+    now,
+    usageBudget,
+  } = args;
   throwIfAborted(signal);
 
   if (claim.notFactCheckable) {
@@ -183,6 +193,7 @@ export async function investigateClaim(
       sources: retrieval.sources,
       documents: retrieval.documents,
       llm: evaluationLlm,
+      usageBudget,
     });
     throwIfAborted(signal);
 
@@ -202,6 +213,7 @@ export async function investigateClaim(
       gaps,
       transcriptConfirmed: true,
       llm: evaluationLlm,
+      usageBudget,
       now,
     });
 

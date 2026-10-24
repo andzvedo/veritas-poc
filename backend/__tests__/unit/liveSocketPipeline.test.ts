@@ -13,6 +13,7 @@ import type {
   Claim,
   ClaimDetectedEvent,
   LiveSessionStartedEvent,
+  LiveMetricsEvent,
   TranscriptFinalEvent,
   Verification,
   VerificationResultEvent,
@@ -278,6 +279,7 @@ describe('live Socket.IO pipeline (LIVE-006/009–013)', () => {
       client,
       'VERIFICATION_RESULT',
     );
+    const liveMetrics = waitFor<LiveMetricsEvent>(client, 'LIVE_METRICS');
 
     // Two windows of non-silent PCM so the segmenter can finalize on end().
     for (let seq = 0; seq < 2; seq++) {
@@ -304,12 +306,13 @@ describe('live Socket.IO pipeline (LIVE-006/009–013)', () => {
     const ended = waitFor(client, 'LIVE_SESSION_ENDED');
     client.emit('END_LIVE_SESSION', { sessionId: SESSION_ID });
 
-    const [transcript, claimEvent, verificationEvent] = await Promise.all([
+    const [transcript, claimEvent, verificationEvent, metricsEvent] = await Promise.all([
       finalTranscript,
       claimDetected,
       verificationResult,
-      ended,
+      liveMetrics,
     ]);
+    await ended;
 
     expect(transcript.data.segment.text).toContain('Pix');
     // Honest speaker attribution: UnknownSpeakerProvider → no fabricated name.
@@ -326,6 +329,9 @@ describe('live Socket.IO pipeline (LIVE-006/009–013)', () => {
     expect(verificationEvent.data.verification.verdict).toBe('FALSE');
     expect(verificationEvent.envelope.sessionId).toBe(SESSION_ID);
     expect(verificationEvent.envelope.eventSeq).toBeGreaterThan(0);
+    expect(metricsEvent.data.llmCallsUsed).toBe(0);
+    expect(metricsEvent.data.researchCallsUsed).toBe(0);
+    expect(metricsEvent.data.creditsUsed).toBe(0);
 
     expect(extractClaimsFn).toHaveBeenCalled();
     expect(investigateClaimFn).toHaveBeenCalled();
