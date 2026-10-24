@@ -292,3 +292,73 @@ test('repeated upserts of the same revision never duplicate cards', () => {
 
   assert.equal(items.length, 1);
 });
+
+test('applySessionSnapshotVerifications replays invalidations without resurrecting an old verdict (LIVE-040)', () => {
+  const stale = baseVerification({
+    revision: 3,
+    status: 'COMPLETED',
+    verdict: 'FALSE',
+    conclusion: 'Conclusão da versão antiga',
+  });
+  const invalidatedAt = '2026-10-23T12:00:00-03:00';
+
+  const merged = applySessionSnapshotVerifications([stale], {
+    sessionId: 'session-a',
+    state: 'LISTENING',
+    segments: [],
+    claims: [],
+    // The server no longer lists the superseded verification as current.
+    verifications: [],
+    cursor: 50,
+    invalidations: [
+      {
+        verificationId: 'ver-1',
+        claimId: 'claim-1',
+        revision: 5,
+        cause: 'TRANSCRIPT_CORRECTION',
+        reason: 'Transcrição corrigida pelo usuário',
+        invalidatedAt,
+      },
+    ],
+  });
+
+  assert.equal(merged.items.length, 1);
+  const card = merged.items[0];
+  assert.equal(card.status, 'CANCELLED');
+  assert.equal(card.verdict, undefined);
+  assert.equal(card.conclusion, undefined);
+  assert.equal(card.revision, 5);
+  assert.equal(card.updatedAt, invalidatedAt);
+});
+
+test('applySessionSnapshotVerifications keeps a newer result over an older invalidation (LIVE-040)', () => {
+  const fresh = baseVerification({
+    revision: 7,
+    status: 'COMPLETED',
+    verdict: 'SUPPORTED',
+    conclusion: 'Nova tentativa concluída',
+  });
+
+  const merged = applySessionSnapshotVerifications([], {
+    sessionId: 'session-a',
+    state: 'LISTENING',
+    segments: [],
+    claims: [],
+    verifications: [fresh],
+    cursor: 60,
+    invalidations: [
+      {
+        verificationId: 'ver-1',
+        claimId: 'claim-1',
+        revision: 5,
+        cause: 'RETRY_REQUESTED',
+        reason: 'Nova tentativa solicitada pelo usuário',
+        invalidatedAt: '2026-10-23T12:00:00-03:00',
+      },
+    ],
+  });
+
+  assert.equal(merged.items[0].status, 'COMPLETED');
+  assert.equal(merged.items[0].verdict, 'SUPPORTED');
+  assert.equal(merged.items[0].revision, 7);
+});

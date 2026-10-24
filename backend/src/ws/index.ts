@@ -14,6 +14,8 @@ import {
 
 export type * from './types.js';
 
+export const MAX_SOCKET_MESSAGE_BYTES = 512 * 1024;
+
 export type WebSocketServerOptions = {
   /**
    * Browser origins allowed to open a socket. Defaults to the local
@@ -52,6 +54,10 @@ export function createWebSocketServer(
         origin: allowedOrigins,
         methods: ['GET', 'POST'],
       },
+      // Binary/message cap (LIVE-038): one audio chunk is at most
+      // LIVE_PAYLOAD_LIMITS.maxChunkSamples * 2 bytes (320 KB); 512 KB leaves
+      // room for the JSON metadata. Larger frames close the connection.
+      maxHttpBufferSize: MAX_SOCKET_MESSAGE_BYTES,
       // CORS is enforced by the browser only, so unknown browser origins are
       // also rejected at the handshake. Requests without Origin are allowed.
       allowRequest: (req, callback) => {

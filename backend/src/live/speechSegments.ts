@@ -698,6 +698,12 @@ export class SpeechSegmenter {
   }
 
   /** Segments whose change cursor is greater than `cursor`, oldest first. */
+  /** Drops every segment and its history (DELETE_SESSION, LIVE-038). */
+  clear(): void {
+    this.records.clear();
+    this.openSegmentId = undefined;
+  }
+
   getSegments(cursor = 0): TranscriptSegment[] {
     return [...this.records.values()]
       .filter((record) => record.seq > cursor)

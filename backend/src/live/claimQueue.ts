@@ -134,7 +134,7 @@ function isAbortError(error: unknown): boolean {
   );
 }
 
-function defaultIsRetryable(error: unknown): boolean {
+export function defaultIsRetryable(error: unknown): boolean {
   if (error instanceof QueueTimeoutError || error instanceof QueueCancelledError) {
     return false;
   }
@@ -258,6 +258,39 @@ export class ClaimQueue<T> {
     }
 
     this.checkIdle();
+  }
+
+  /**
+   * Cancels one occurrence (waiting or running) by job id, aborting its
+   * signal. Returns true when something was cancelled. Used when an input
+   * revision changes and the in-flight investigation became stale (LIVE-040).
+   */
+  cancel(id: string, reason = 'cancelada'): boolean {
+    let cancelled = false;
+    for (let index = this.pending.length - 1; index >= 0; index--) {
+      const job = this.pending[index];
+      if (job.id !== id) {
+        continue;
+      }
+      this.pending.splice(index, 1);
+      this.counters.cancelled += 1;
+      this.emit({ type: 'CANCELLED', id: job.id, reason });
+      job.reject(new QueueCancelledError(reason, job.id));
+      cancelled = true;
+    }
+    for (const run of this.active) {
+      if (run.job.id !== id || run.cancelled) {
+        continue;
+      }
+      run.cancelled = true;
+      run.reason = reason;
+      const error = new QueueCancelledError(reason, run.job.id);
+      run.controller?.abort(error);
+      run.interrupt?.(error);
+      cancelled = true;
+    }
+    this.checkIdle();
+    return cancelled;
   }
 
   getMetrics(): ClaimQueueMetrics {

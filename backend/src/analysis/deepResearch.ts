@@ -1,4 +1,5 @@
 import { parseLLMJsonResponse, sanitizeJsonForTemplate } from '#/utils/llm.js';
+import { safeErrorForLog } from '#/utils/security.js';
 import { FACT_CHECK_RESULT_DATA_SCHEMA } from '#/ws/types.js';
 import { StringOutputParser } from "@langchain/core/output_parsers";
 import { PromptTemplate } from "@langchain/core/prompts";
@@ -94,7 +95,7 @@ export function deepResearch({ query, memory, llm, tavilyApiKey }: DeepResearchA
 
           return formattedResults;
         } catch (error) {
-          console.error('Tavily search failed:', error);
+          console.error('Tavily search failed:', safeErrorForLog(error));
           return 'Search temporarily unavailable.';
         }
       },

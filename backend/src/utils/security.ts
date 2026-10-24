@@ -112,6 +112,13 @@ const redactValue = (
  * `/api.?key|token|secret|authorization|password/i` become `'[REDACTED]'`,
  * strings are capped and known credential shapes are scrubbed.
  */
+/**
+ * Removes credential-shaped values from user-facing text WITHOUT the log
+ * length cap (snapshots, exports, results must keep the full text).
+ */
+export const redactSecretText = (value: string): string =>
+  scrubSecretValues(value);
+
 export function redactSecrets(value: string): string;
 export function redactSecrets(value: unknown): unknown;
 export function redactSecrets(value: unknown): unknown {
@@ -303,4 +310,91 @@ export function validateFactCheckRequestPayload(
   }
 
   return { ok: true, content, request: parsed.data };
+}
+
+// ===== Destination policy for server-side fetches (LIVE-038) =====
+export const MAX_EXTERNAL_URL_LENGTH = 2_048;
+
+const BLOCKED_HOST_SUFFIXES = ['.localhost', '.local', '.internal', '.lan', '.home.arpa'];
+
+const parseIpv4 = (host: string): number[] | undefined => {
+  const parts = host.split('.');
+  if (parts.length !== 4) {
+    return undefined;
+  }
+  const octets = parts.map((part) => (/^\d{1,3}$/.test(part) ? Number(part) : NaN));
+  return octets.every((octet) => Number.isInteger(octet) && octet >= 0 && octet <= 255)
+    ? octets
+    : undefined;
+};
+
+const isPrivateIpv4 = ([a, b]: number[]): boolean =>
+  a === 0 ||
+  a === 10 ||
+  a === 127 ||
+  (a === 100 && b >= 64 && b <= 127) ||
+  (a === 169 && b === 254) ||
+  (a === 172 && b >= 16 && b <= 31) ||
+  (a === 192 && b === 168) ||
+  (a === 198 && (b === 18 || b === 19)) ||
+  a >= 224;
+
+const isPrivateIpv6 = (host: string): boolean => {
+  const value = host.toLowerCase();
+  if (value === '::' || value === '::1') {
+    return true;
+  }
+  if (/^f[cd][0-9a-f]{0,2}:/.test(value) || /^fe[89ab][0-9a-f]?:/.test(value)) {
+    return true;
+  }
+  const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(value);
+  if (mapped !== null) {
+    const v4 = parseIpv4(mapped[1]);
+    return v4 === undefined || isPrivateIpv4(v4);
+  }
+  // Hex form of an IPv4-mapped address (e.g. ::ffff:7f00:1) is never public data.
+  return value.startsWith('::ffff:');
+};
+
+/**
+ * True only for public http(s) URLs: no embedded credentials, no localhost,
+ * private, link-local or metadata ranges, bounded length. Applied before any
+ * server-side fetch of a URL that came from a document, a search result or a
+ * client (SSRF guard). DNS rebinding is out of scope (documented residual).
+ */
+export function isSafeExternalUrl(value: string): boolean {
+  if (value.length === 0 || value.length > MAX_EXTERNAL_URL_LENGTH) {
+    return false;
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    return false;
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    return false;
+  }
+  if (parsed.username.length > 0 || parsed.password.length > 0) {
+    return false;
+  }
+  const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  if (host.length === 0 || host === 'localhost' || !host.includes('.') && !host.includes(':')) {
+    return false;
+  }
+  if (BLOCKED_HOST_SUFFIXES.some((suffix) => host.endsWith(suffix))) {
+    return false;
+  }
+  const v4 = parseIpv4(host);
+  if (v4 !== undefined) {
+    return !isPrivateIpv4(v4);
+  }
+  if (host.includes(':')) {
+    return !isPrivateIpv6(host);
+  }
+  // Integer / hex host forms ("2130706433", "0x7f000001") resolve to IPs.
+  if (/^(0x[0-9a-f]+|\d+)$/i.test(host)) {
+    return false;
+  }
+  return true;
 }

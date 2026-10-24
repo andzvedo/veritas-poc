@@ -128,7 +128,8 @@ export function applyVerificationInvalidation(
         ? payload.reason
         : 'Verificação superada por correção posterior.',
     ],
-    updatedAt: new Date().toISOString(),
+    // Server time of the invalidation when available (LIVE-040 audit).
+    updatedAt: payload.invalidatedAt ?? new Date().toISOString(),
   };
 
   const next = [...items];
@@ -151,9 +152,24 @@ export function applySessionSnapshotVerifications(
   const otherSessions = items.filter(
     (item) => item.sessionId !== undefined && item.sessionId !== snapshot.sessionId,
   );
-  const currentSession = items.filter(
+  let currentSession = items.filter(
     (item) => item.sessionId === undefined || item.sessionId === snapshot.sessionId,
   );
+  // LIVE-040: invalidations missed while disconnected turn the stale local
+  // card into a tombstone that keeps the reason, instead of silently vanishing.
+  // A newer local result is never touched (stale replay is ignored).
+  for (const invalidation of snapshot.invalidations ?? []) {
+    currentSession = applyVerificationInvalidation(
+      currentSession,
+      {
+        verificationId: invalidation.verificationId,
+        reason: invalidation.reason,
+        revision: invalidation.revision,
+        invalidatedAt: invalidation.invalidatedAt,
+      },
+      snapshot.sessionId,
+    ).items;
+  }
   const snapshotIds = new Set(snapshot.verifications.map((item) => item.id));
   let next = [
     ...otherSessions,

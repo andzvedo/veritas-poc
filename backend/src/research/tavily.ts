@@ -1,3 +1,4 @@
+import { isSafeExternalUrl } from '#/utils/security.js';
 import {
   ResearchError,
   redactSecrets,
@@ -43,13 +44,9 @@ const readString = (value: unknown): string | undefined =>
 const readNumber = (value: unknown): number | undefined =>
   typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 
+/** Public http(s) destinations only (SSRF policy, LIVE-038). */
 function isHttpUrl(value: string): boolean {
-  try {
-    const parsed = new URL(value);
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
-  } catch {
-    return false;
-  }
+  return isSafeExternalUrl(value);
 }
 
 function normalizeMaxResults(value: number): number {

@@ -8,6 +8,7 @@ import type {
   CorrectTranscript,
   DeleteSession,
   ExportSession,
+  HumanReviewRecordedEvent,
   LiveGapData,
   LiveGapEvent,
   LiveMetricsData,
@@ -19,10 +20,12 @@ import type {
   LiveSessionStateEvent,
   ResumeSession,
   RetryVerification,
+  SessionExportEvent,
   SessionSnapshotEvent,
   SpeakerMapping,
   SpeakerMappingUpdatedEvent,
   StartLiveSession,
+  SubmitHumanReview,
   TranscriptFinalEvent,
   TranscriptPartialEvent,
   TranscriptRevisedEvent,
@@ -116,6 +119,7 @@ export type ClientToServerEvents = {
   RETRY_VERIFICATION: (payload: RetryVerification) => void;
   EXPORT_SESSION: (payload: ExportSession) => void;
   DELETE_SESSION: (payload: DeleteSession) => void;
+  SUBMIT_HUMAN_REVIEW: (payload: SubmitHumanReview) => void;
 };
 
 export type ServerToClientEvents = {
@@ -137,6 +141,8 @@ export type ServerToClientEvents = {
   LIVE_GAP: (data: LiveGapEvent) => void;
   LIVE_SESSION_ENDED: (data: LiveSessionEndedEvent) => void;
   AUDIO_CHUNK_ACK: (data: AudioChunkAckEvent) => void;
+  SESSION_EXPORT: (data: SessionExportEvent) => void;
+  HUMAN_REVIEW_RECORDED: (data: HumanReviewRecordedEvent) => void;
 };
 
 // ===== Estados da Verificação (Frontend) =====

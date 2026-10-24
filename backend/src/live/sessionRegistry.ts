@@ -5,14 +5,26 @@
  * {@link LiveSession.restoreFromPersistedState} remains the authoritative
  * rejection for cross-process resume. Abandoned RECONNECTING sessions expire.
  */
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { LivePipeline } from './livePipeline.js';
 import { LiveSessionUnavailableError } from './liveSession.js';
 
-export const DEFAULT_LIVE_SESSION_IDLE_MS = 15 * 60 * 1000;
-export const DEFAULT_LIVE_MAX_SESSIONS = 32;
+import {
+  DEFAULT_LIVE_MAX_SESSIONS,
+  DEFAULT_LIVE_MAX_SESSIONS_PER_SOCKET,
+  DEFAULT_LIVE_SESSION_IDLE_MS,
+} from './retention.js';
+
+export {
+  DEFAULT_LIVE_MAX_SESSIONS,
+  DEFAULT_LIVE_MAX_SESSIONS_PER_SOCKET,
+  DEFAULT_LIVE_SESSION_IDLE_MS,
+};
 
 export type LiveSessionRegistryOptions = {
   maxSessions?: number;
+  /** Sessions one socket may own at once (resource limit, LIVE-038). */
+  maxSessionsPerSocket?: number;
   idleTtlMs?: number;
   now?: () => number;
 };
@@ -20,11 +32,25 @@ export type LiveSessionRegistryOptions = {
 type RegistryEntry = {
   pipeline: LivePipeline;
   lastTouchedAt: number;
+  /** SHA-256 of the resume token; the token itself is never stored. */
+  resumeTokenHash: Buffer;
+};
+
+const hashToken = (token: string): Buffer =>
+  createHash('sha256').update(token, 'utf8').digest();
+
+/** Constant-time comparison of a presented token against the stored hash. */
+const tokenMatches = (presented: string | undefined, hash: Buffer): boolean => {
+  if (presented === undefined || presented.length === 0) {
+    return false;
+  }
+  return timingSafeEqual(hashToken(presented), hash);
 };
 
 export class LiveSessionRegistry {
   private readonly sessions = new Map<string, RegistryEntry>();
   private readonly maxSessions: number;
+  private readonly maxSessionsPerSocket: number;
   private readonly idleTtlMs: number;
   private readonly now: () => number;
 
@@ -32,6 +58,10 @@ export class LiveSessionRegistry {
     this.maxSessions = Math.max(
       1,
       options.maxSessions ?? DEFAULT_LIVE_MAX_SESSIONS,
+    );
+    this.maxSessionsPerSocket = Math.max(
+      1,
+      options.maxSessionsPerSocket ?? DEFAULT_LIVE_MAX_SESSIONS_PER_SOCKET,
     );
     this.idleTtlMs = Math.max(
       1_000,
@@ -72,7 +102,12 @@ export class LiveSessionRegistry {
     return pipeline;
   }
 
-  register(pipeline: LivePipeline): void {
+  /**
+   * Registers a pipeline and returns its resume token: a 256-bit random
+   * capability the owner must present to reclaim the session from another
+   * socket. Only its hash is kept; it never appears in snapshots or logs.
+   */
+  register(pipeline: LivePipeline): string {
     this.evictExpired();
     if (this.sessions.has(pipeline.sessionId)) {
       throw new LiveSessionUnavailableError(
@@ -84,10 +119,22 @@ export class LiveSessionRegistry {
         `Limite de sessões ao vivo atingido (${String(this.maxSessions)}). Encerre uma sessão antes de iniciar outra.`,
       );
     }
+    const owned = [...this.sessions.values()].filter(
+      (entry) => entry.pipeline.ownerSocketId === pipeline.ownerSocketId,
+    ).length;
+    if (owned >= this.maxSessionsPerSocket) {
+      throw new LiveSessionUnavailableError(
+        `Limite de sessões ao vivo por conexão atingido (${String(this.maxSessionsPerSocket)}).`,
+      );
+    }
+    const resumeToken = randomBytes(32).toString('base64url');
+    pipeline.setIdleTtlMs(this.idleTtlMs);
     this.sessions.set(pipeline.sessionId, {
       pipeline,
       lastTouchedAt: this.now(),
+      resumeTokenHash: hashToken(resumeToken),
     });
+    return resumeToken;
   }
 
   remove(sessionId: string): void {
@@ -110,22 +157,30 @@ export class LiveSessionRegistry {
   }
 
   /**
-   * Rebind is allowed only for the socket that already owns the session.
-   * Socket IDs are the only ownership proof in the current P0 contract; a
-   * different connection must never take over by presenting a session ID.
-   * Add a separate high-entropy resume credential before enabling takeover.
+   * Same-instance resume. The current owner may always resume its own
+   * session. Another socket may reclaim it only while RECONNECTING **and**
+   * when it presents the session's resume token — knowing the sessionId is
+   * not authorization (LIVE-038).
    */
   reclaim(
     sessionId: string,
     newOwnerSocketId: string,
+    resumeToken?: string,
   ): LivePipeline | undefined {
+    this.evictExpired();
     const entry = this.sessions.get(sessionId);
     if (entry === undefined) {
       return undefined;
     }
     const owned = entry.pipeline.ownerSocketId === newOwnerSocketId;
     if (!owned) {
-      return undefined;
+      // Token first: a caller without the credential learns nothing else.
+      if (!tokenMatches(resumeToken, entry.resumeTokenHash)) {
+        return undefined;
+      }
+      if (entry.pipeline.getStatus().captureState !== 'RECONNECTING') {
+        return undefined;
+      }
     }
     entry.pipeline.ownerSocketId = newOwnerSocketId;
     entry.lastTouchedAt = this.now();

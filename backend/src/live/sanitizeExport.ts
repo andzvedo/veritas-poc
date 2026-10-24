@@ -2,24 +2,28 @@
  * Sanitizes live session snapshots/exports: strip credential-like strings and
  * never include raw audio or API keys (LIVE-006 P0 export).
  */
-import { redactSecrets } from '#/utils/security.js';
+import { redactSecretText } from '#/utils/security.js';
 import type {
   Claim,
+  RevisionDiff,
+  SessionAudit,
   SessionSnapshotData,
   TranscriptSegment,
   Verification,
+  VerificationInvalidationRecord,
 } from '@veritas/shared';
 
-const scrub = (value: string): string => redactSecrets(value);
+/** Credential scrubbing without the log length cap (full text is kept). */
+const scrub = (value: string): string => redactSecretText(value);
 
-function scrubSegment(segment: TranscriptSegment): TranscriptSegment {
+export function scrubSegment(segment: TranscriptSegment): TranscriptSegment {
   return {
     ...segment,
     text: scrub(segment.text),
   };
 }
 
-function scrubClaim(claim: Claim): Claim {
+export function scrubClaim(claim: Claim): Claim {
   return {
     ...claim,
     originalQuote: scrub(claim.originalQuote),
@@ -40,7 +44,7 @@ function scrubClaim(claim: Claim): Claim {
   };
 }
 
-function scrubVerification(verification: Verification): Verification {
+export function scrubVerification(verification: Verification): Verification {
   return {
     ...verification,
     originalQuote: scrub(verification.originalQuote),
@@ -87,6 +91,50 @@ function scrubVerification(verification: Verification): Verification {
   };
 }
 
+export function scrubDiff(diff: RevisionDiff): RevisionDiff {
+  return {
+    ...diff,
+    ...(diff.before === undefined ? {} : { before: scrub(diff.before) }),
+    ...(diff.after === undefined ? {} : { after: scrub(diff.after) }),
+    changeKinds: [...diff.changeKinds],
+  };
+}
+
+export function scrubInvalidation(
+  record: VerificationInvalidationRecord,
+): VerificationInvalidationRecord {
+  return {
+    ...record,
+    reason: scrub(record.reason),
+    ...(record.diff === undefined ? {} : { diff: scrubDiff(record.diff) }),
+  };
+}
+
+export function scrubAudit(audit: SessionAudit): SessionAudit {
+  return {
+    attempts: audit.attempts.map((attempt) => ({
+      ...attempt,
+      ...(attempt.reason === undefined ? {} : { reason: scrub(attempt.reason) }),
+      inputs: {
+        ...attempt.inputs,
+        ...(attempt.inputs.speakerName === undefined
+          ? {}
+          : { speakerName: scrub(attempt.inputs.speakerName) }),
+      },
+    })),
+    invalidations: audit.invalidations.map(scrubInvalidation),
+    humanReviews: audit.humanReviews.map((review) => ({
+      ...review,
+      ...(review.note === undefined ? {} : { note: scrub(review.note) }),
+    })),
+    typographicCorrections: audit.typographicCorrections.map((record) => ({
+      ...record,
+      diff: scrubDiff(record.diff),
+    })),
+    truncated: audit.truncated,
+  };
+}
+
 /** Returns a client-safe snapshot: no keys, no audio, secrets redacted. */
 export function sanitizeSessionSnapshot(
   snapshot: SessionSnapshotData,
@@ -98,5 +146,8 @@ export function sanitizeSessionSnapshot(
     segments: snapshot.segments.map(scrubSegment),
     claims: snapshot.claims.map(scrubClaim),
     verifications: snapshot.verifications.map(scrubVerification),
+    ...(snapshot.invalidations === undefined
+      ? {}
+      : { invalidations: snapshot.invalidations.map(scrubInvalidation) }),
   };
 }

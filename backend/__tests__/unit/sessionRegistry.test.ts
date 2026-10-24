@@ -9,6 +9,8 @@ describe('LiveSessionRegistry ownership', () => {
       sessionId: 'session-1',
       ownerSocketId: 'original-socket',
       clearCredentials: () => undefined,
+      setIdleTtlMs: () => undefined,
+      getStatus: () => ({ captureState: 'LISTENING' }),
     } as unknown as LivePipeline;
 
     registry.register(pipeline);

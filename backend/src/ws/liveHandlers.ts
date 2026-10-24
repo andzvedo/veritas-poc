@@ -12,10 +12,13 @@ import {
   CORRECT_TRANSCRIPT_SCHEMA,
   DELETE_SESSION_SCHEMA,
   EXPORT_SESSION_SCHEMA,
+  LIVE_ID_SCHEMA,
+  LIVE_PAYLOAD_LIMITS,
   LIVE_SESSION_CONTROL_SCHEMA,
   RESUME_SESSION_SCHEMA,
   RETRY_VERIFICATION_SCHEMA,
   START_LIVE_SESSION_SCHEMA,
+  SUBMIT_HUMAN_REVIEW_SCHEMA,
   UPDATE_SPEAKER_MAPPING_SCHEMA,
   type ClientToServerEvents,
   type ServerToClientEvents,
@@ -27,6 +30,7 @@ import {
   type LivePipelineEmit,
 } from '#/live/livePipeline.js';
 import {
+  LiveSessionError,
   LiveSessionStateError,
   LiveSessionUnavailableError,
 } from '#/live/liveSession.js';
@@ -39,7 +43,14 @@ import {
   LiveSessionRegistry,
   liveSessionRegistry,
 } from '#/live/sessionRegistry.js';
+import { RevisionConflictError } from '#/live/revisionLedger.js';
 import { createTranscriptionProvider } from '#/live/transcription.js';
+import { SpeechSegmenterError } from '#/live/speechSegments.js';
+import {
+  DEFAULT_LIVE_RATE_LIMITS,
+  TokenBucket,
+  type LiveRateLimits,
+} from '#/utils/rateLimit.js';
 import { createTavilyProvider } from '#/research/tavily.js';
 import { redactSecrets, safeErrorForLog } from '#/utils/security.js';
 
@@ -50,6 +61,9 @@ export type LiveHandlersOptions = {
   createTranscription?: typeof createTranscriptionProvider;
   createDiarization?: typeof createDiarizationProvider;
   env?: NodeJS.ProcessEnv;
+  /** Per-socket event limits (LIVE-038). Defaults to DEFAULT_LIVE_RATE_LIMITS. */
+  rateLimits?: Partial<LiveRateLimits>;
+  now?: () => number;
   /**
    * Extra LivePipeline deps for tests (extractClaimsFn, investigateClaimFn,
    * sessionConfig, etc.). Never used to inject credentials from env files.
@@ -131,7 +145,34 @@ const bindEmit = (socket: LiveSocket): LivePipelineEmit => ({
   AUDIO_CHUNK_ACK: (event) => {
     socket.emit('AUDIO_CHUNK_ACK', event as never);
   },
+  SESSION_EXPORT: (event) => {
+    socket.emit('SESSION_EXPORT', event as never);
+  },
+  HUMAN_REVIEW_RECORDED: (event) => {
+    socket.emit('HUMAN_REVIEW_RECORDED', event as never);
+  },
 });
+
+/** sessionId of an untrusted payload, only when it is a valid id. */
+const sessionIdOf = (payload: unknown): string | undefined => {
+  if (typeof payload !== 'object' || payload === null) {
+    return undefined;
+  }
+  const parsed = LIVE_ID_SCHEMA.safeParse(
+    (payload as { sessionId?: unknown }).sessionId,
+  );
+  return parsed.success ? parsed.data : undefined;
+};
+
+/** Messages of these errors are written for the user and contain no secrets. */
+const userFacingMessage = (error: unknown, fallback: string): string =>
+  error instanceof LiveSessionError ||
+  error instanceof RevisionConflictError ||
+  error instanceof SpeechSegmenterError ||
+  error instanceof UnknownSpeakerError ||
+  error instanceof SpeakerMappingConflictError
+    ? error.message
+    : fallback;
 
 const requireOwned = (
   registry: LiveSessionRegistry,
@@ -150,25 +191,30 @@ const requireOwned = (
   return pipeline;
 };
 
-const toPcmBuffer = (audio: unknown): Buffer | undefined => {
-  if (Buffer.isBuffer(audio)) {
-    return audio;
-  }
-  if (typeof ArrayBuffer !== 'undefined' && audio instanceof ArrayBuffer) {
-    return Buffer.from(audio);
-  }
-  if (audio instanceof Uint8Array) {
-    return Buffer.from(audio.buffer, audio.byteOffset, audio.byteLength);
-  }
-  return undefined;
-};
+const MAX_CHUNK_BYTES = LIVE_PAYLOAD_LIMITS.maxChunkSamples * 2;
 
-const sessionIdFromPayload = (payload: unknown): string | undefined => {
-  if (typeof payload !== 'object' || payload === null) {
+/**
+ * Binary guard: only Buffer / ArrayBuffer / typed views up to the chunk cap
+ * are accepted. Anything else (strings, objects, oversize) returns undefined.
+ */
+export const toPcmBuffer = (audio: unknown): Buffer | undefined => {
+  let buffer: Buffer | undefined;
+  if (Buffer.isBuffer(audio)) {
+    buffer = audio;
+  } else if (audio instanceof ArrayBuffer) {
+    buffer = Buffer.from(audio);
+  } else if (ArrayBuffer.isView(audio)) {
+    buffer = Buffer.from(audio.buffer, audio.byteOffset, audio.byteLength);
+  }
+  if (
+    buffer === undefined ||
+    buffer.byteLength === 0 ||
+    buffer.byteLength > MAX_CHUNK_BYTES ||
+    buffer.byteLength % 2 !== 0
+  ) {
     return undefined;
   }
-  const sessionId = (payload as { sessionId?: unknown }).sessionId;
-  return typeof sessionId === 'string' ? sessionId : undefined;
+  return buffer;
 };
 
 /**
@@ -185,18 +231,62 @@ export function attachLiveSessionHandlers(
   const createDiarization =
     options.createDiarization ?? createDiarizationProvider;
   const env = options.env ?? process.env;
+  const now = options.now ?? (() => Date.now());
+  const limits = { ...DEFAULT_LIVE_RATE_LIMITS, ...(options.rateLimits ?? {}) };
+  const buckets = {
+    audio: new TokenBucket({ ...limits.audio, now }),
+    control: new TokenBucket({ ...limits.control, now }),
+    session: new TokenBucket({ ...limits.session, now }),
+  };
+  let lastLimitNoticeAt = Number.NEGATIVE_INFINITY;
+  /** False when the socket exceeded its budget (one notice per second). */
+  const allow = (kind: keyof typeof buckets, payload: unknown): boolean => {
+    if (buckets[kind].tryTake()) {
+      return true;
+    }
+    const at = now();
+    if (at - lastLimitNoticeAt >= 1_000) {
+      lastLimitNoticeAt = at;
+      emitLiveError(
+        socket,
+        sessionIdOf(payload),
+        'Limite de eventos excedido nesta conexão; aguarde antes de reenviar.',
+      );
+    }
+    return false;
+  };
+  /** Handlers never throw into Socket.IO (malformed input, state errors). */
+  const guard =
+    <A extends unknown[]>(name: string, handler: (...args: A) => void) =>
+    (...args: A): void => {
+      try {
+        handler(...args);
+      } catch (error) {
+        console.error(`${name} handler failed`, {
+          error: safeErrorForLog(error),
+        });
+        emitLiveError(
+          socket,
+          sessionIdOf(args[0]),
+          userFacingMessage(error, 'Falha ao processar o evento ao vivo.'),
+        );
+      }
+    };
 
   socket.on('disconnect', () => {
     registry.markSocketDisconnected(socket.id);
   });
 
   socket.on('START_LIVE_SESSION', (payload) => {
+    if (!allow('session', payload)) {
+      return;
+    }
     void (async () => {
       const parsed = START_LIVE_SESSION_SCHEMA.safeParse(payload);
       if (!parsed.success) {
         emitLiveError(
           socket,
-          sessionIdFromPayload(payload),
+          sessionIdOf(payload),
           'Payload START_LIVE_SESSION inválido.',
         );
         return;
@@ -237,8 +327,14 @@ export function attachLiveSessionHandlers(
           ...overrides,
         });
 
-        registry.register(pipeline);
-        pipeline.start();
+        const resumeToken = registry.register(pipeline);
+        try {
+          pipeline.start(resumeToken);
+        } catch (error) {
+          pipeline.cancel('start_failed');
+          registry.remove(pipeline.sessionId);
+          throw error;
+        }
       } catch (error) {
         console.error('START_LIVE_SESSION failed', {
           sessionId: data.sessionId,
@@ -254,86 +350,97 @@ export function attachLiveSessionHandlers(
     })().catch((error: unknown) => {
       emitLiveError(
         socket,
-        sessionIdFromPayload(payload),
-        error instanceof Error
-          ? error.message
-          : 'Não foi possível iniciar a sessão ao vivo.',
+        sessionIdOf(payload),
+        userFacingMessage(error, 'Falha ao processar o evento ao vivo.'),
       );
     });
   });
 
-  socket.on('AUDIO_CHUNK', (payload, audio) => {
-    const parsed = AUDIO_CHUNK_SCHEMA.safeParse(payload);
-    if (!parsed.success) {
-      return;
-    }
-    const pipeline = requireOwned(registry, socket, parsed.data.sessionId);
-    if (pipeline === undefined) {
-      return;
-    }
-    const pcm = toPcmBuffer(audio);
-    if (pcm === undefined || pcm.byteLength === 0 || pcm.byteLength % 2 !== 0) {
-      emitLiveError(
-        socket,
-        parsed.data.sessionId,
-        'Chunk de áudio inválido: esperado PCM16LE binário com tamanho par.',
-      );
-      return;
-    }
-    const { sessionId, ...meta } = parsed.data;
-    void sessionId;
-    try {
+  socket.on(
+    'AUDIO_CHUNK',
+    guard('AUDIO_CHUNK', (payload: unknown, audio: unknown) => {
+      if (!allow('audio', payload)) {
+        return;
+      }
+      const parsed = AUDIO_CHUNK_SCHEMA.safeParse(payload);
+      if (!parsed.success) {
+        return;
+      }
+      const pcm = toPcmBuffer(audio);
+      if (pcm === undefined) {
+        emitLiveError(
+          socket,
+          parsed.data.sessionId,
+          'Chunk de áudio inválido (binário ausente, vazio ou acima do limite).',
+        );
+        return;
+      }
+      const pipeline = requireOwned(registry, socket, parsed.data.sessionId);
+      if (pipeline === undefined) {
+        return;
+      }
+      const { sessionId, ...meta } = parsed.data;
+      void sessionId;
       pipeline.handleAudioChunk(meta, pcm);
-    } catch (error) {
-      emitLiveError(
-        socket,
-        parsed.data.sessionId,
-        error instanceof Error ? error.message : 'Falha ao processar áudio.',
-      );
-    }
-  });
+    }),
+  );
 
-  socket.on('PAUSE_LIVE_SESSION', (payload) => {
-    const parsed = LIVE_SESSION_CONTROL_SCHEMA.safeParse(payload);
-    if (!parsed.success) {
-      return;
-    }
-    const pipeline = requireOwned(registry, socket, parsed.data.sessionId);
-    if (pipeline === undefined) {
-      return;
-    }
-    try {
-      pipeline.pause();
-    } catch (error) {
-      emitLiveError(
-        socket,
-        parsed.data.sessionId,
-        error instanceof Error ? error.message : 'Falha ao pausar',
-      );
-    }
-  });
+  socket.on(
+    'PAUSE_LIVE_SESSION',
+    guard('PAUSE_LIVE_SESSION', (payload: unknown) => {
+      if (!allow('control', payload)) {
+        return;
+      }
+      const parsed = LIVE_SESSION_CONTROL_SCHEMA.safeParse(payload);
+      if (!parsed.success) {
+        return;
+      }
+      const pipeline = requireOwned(registry, socket, parsed.data.sessionId);
+      if (pipeline === undefined) {
+        return;
+      }
+      try {
+        pipeline.pause();
+      } catch (error) {
+        emitLiveError(
+          socket,
+          parsed.data.sessionId,
+          userFacingMessage(error, 'Falha ao pausar'),
+        );
+      }
+    }),
+  );
 
-  socket.on('RESUME_LIVE_SESSION', (payload) => {
-    const parsed = LIVE_SESSION_CONTROL_SCHEMA.safeParse(payload);
-    if (!parsed.success) {
-      return;
-    }
-    const pipeline = requireOwned(registry, socket, parsed.data.sessionId);
-    if (pipeline === undefined) {
-      return;
-    }
-    try {
-      pipeline.resumeCapture();
-    } catch (error) {
-      emitLiveError(
-        socket,
-        parsed.data.sessionId,
-        error instanceof Error ? error.message : 'Falha ao retomar',
-      );
-    }
-  });
+  socket.on(
+    'RESUME_LIVE_SESSION',
+    guard('RESUME_LIVE_SESSION', (payload: unknown) => {
+      if (!allow('control', payload)) {
+        return;
+      }
+      const parsed = LIVE_SESSION_CONTROL_SCHEMA.safeParse(payload);
+      if (!parsed.success) {
+        return;
+      }
+      const pipeline = requireOwned(registry, socket, parsed.data.sessionId);
+      if (pipeline === undefined) {
+        return;
+      }
+      try {
+        pipeline.resumeCapture();
+      } catch (error) {
+        emitLiveError(
+          socket,
+          parsed.data.sessionId,
+          userFacingMessage(error, 'Falha ao retomar'),
+        );
+      }
+    }),
+  );
 
   socket.on('END_LIVE_SESSION', (payload) => {
+    if (!allow('control', payload)) {
+      return;
+    }
     void (async () => {
       const parsed = LIVE_SESSION_CONTROL_SCHEMA.safeParse(payload);
       if (!parsed.success) {
@@ -349,7 +456,7 @@ export function attachLiveSessionHandlers(
         emitLiveError(
           socket,
           parsed.data.sessionId,
-          error instanceof Error ? error.message : 'Falha ao encerrar',
+          userFacingMessage(error, 'Falha ao encerrar'),
         );
       } finally {
         registry.remove(parsed.data.sessionId);
@@ -357,102 +464,133 @@ export function attachLiveSessionHandlers(
     })().catch((error: unknown) => {
       emitLiveError(
         socket,
-        sessionIdFromPayload(payload),
-        error instanceof Error ? error.message : 'Falha ao encerrar sessão.',
+        sessionIdOf(payload),
+        userFacingMessage(error, 'Falha ao processar o evento ao vivo.'),
       );
     });
   });
 
-  socket.on('CANCEL_LIVE_SESSION', (payload) => {
-    const parsed = LIVE_SESSION_CONTROL_SCHEMA.safeParse(payload);
-    if (!parsed.success) {
-      return;
-    }
-    const pipeline = requireOwned(registry, socket, parsed.data.sessionId);
-    if (pipeline === undefined) {
-      return;
-    }
-    pipeline.cancel('cancelled');
-    registry.remove(parsed.data.sessionId);
-  });
+  socket.on(
+    'CANCEL_LIVE_SESSION',
+    guard('CANCEL_LIVE_SESSION', (payload: unknown) => {
+      if (!allow('control', payload)) {
+        return;
+      }
+      const parsed = LIVE_SESSION_CONTROL_SCHEMA.safeParse(payload);
+      if (!parsed.success) {
+        return;
+      }
+      const pipeline = requireOwned(registry, socket, parsed.data.sessionId);
+      if (pipeline === undefined) {
+        return;
+      }
+      pipeline.cancel('cancelled');
+      registry.remove(parsed.data.sessionId);
+    }),
+  );
 
-  socket.on('RESUME_SESSION', (payload) => {
-    const parsed = RESUME_SESSION_SCHEMA.safeParse(payload);
-    if (!parsed.success) {
-      return;
-    }
-    const pipeline = registry.reclaim(parsed.data.sessionId, socket.id);
-    if (pipeline === undefined) {
-      emitLiveError(
-        socket,
+  socket.on(
+    'RESUME_SESSION',
+    guard('RESUME_SESSION', (payload: unknown) => {
+      if (!allow('session', payload)) {
+        return;
+      }
+      const parsed = RESUME_SESSION_SCHEMA.safeParse(payload);
+      if (!parsed.success) {
+        return;
+      }
+      const pipeline = registry.reclaim(
         parsed.data.sessionId,
-        'Sessão ao vivo indisponível nesta instância (sem persistência durável). Inicie uma nova sessão.',
+        socket.id,
+        parsed.data.resumeToken,
       );
-      return;
-    }
-    pipeline.setEmit(bindEmit(socket));
-    try {
-      pipeline.resumeSession(parsed.data.cursor);
-    } catch (error) {
-      emitLiveError(
-        socket,
-        parsed.data.sessionId,
-        error instanceof Error ? error.message : 'Falha ao retomar sessão',
-      );
-    }
-  });
+      if (pipeline === undefined) {
+        // Same message for unknown, expired and unauthorized sessions: the
+        // response never confirms that another user's sessionId exists.
+        emitLiveError(
+          socket,
+          parsed.data.sessionId,
+          'Sessão ao vivo indisponível nesta instância ou sem autorização (sem persistência durável). Inicie uma nova sessão.',
+        );
+        return;
+      }
+      pipeline.setEmit(bindEmit(socket));
+      try {
+        pipeline.resumeSession(parsed.data.cursor);
+      } catch (error) {
+        emitLiveError(
+          socket,
+          parsed.data.sessionId,
+          userFacingMessage(error, 'Falha ao retomar sessão'),
+        );
+      }
+    }),
+  );
 
-  socket.on('UPDATE_SPEAKER_MAPPING', (payload) => {
-    const parsed = UPDATE_SPEAKER_MAPPING_SCHEMA.safeParse(payload);
-    if (!parsed.success) {
-      return;
-    }
-    const pipeline = requireOwned(registry, socket, parsed.data.sessionId);
-    if (pipeline === undefined) {
-      return;
-    }
-    try {
-      pipeline.updateSpeakerMappings(
-        parsed.data.mappings,
-        parsed.data.expectedRevision,
-      );
-    } catch (error) {
-      const message =
-        error instanceof UnknownSpeakerError ||
-        error instanceof SpeakerMappingConflictError
-          ? error.message
-          : 'Falha ao atualizar mapeamento de locutores';
-      emitLiveError(socket, parsed.data.sessionId, message);
-    }
-  });
+  socket.on(
+    'UPDATE_SPEAKER_MAPPING',
+    guard('UPDATE_SPEAKER_MAPPING', (payload: unknown) => {
+      if (!allow('control', payload)) {
+        return;
+      }
+      const parsed = UPDATE_SPEAKER_MAPPING_SCHEMA.safeParse(payload);
+      if (!parsed.success) {
+        return;
+      }
+      const pipeline = requireOwned(registry, socket, parsed.data.sessionId);
+      if (pipeline === undefined) {
+        return;
+      }
+      try {
+        pipeline.updateSpeakerMappings(
+          parsed.data.mappings,
+          parsed.data.expectedRevision,
+        );
+      } catch (error) {
+        const message =
+          error instanceof UnknownSpeakerError ||
+          error instanceof SpeakerMappingConflictError
+            ? error.message
+            : 'Falha ao atualizar mapeamento de locutores';
+        emitLiveError(socket, parsed.data.sessionId, message);
+      }
+    }),
+  );
 
-  socket.on('CORRECT_TRANSCRIPT', (payload) => {
-    const parsed = CORRECT_TRANSCRIPT_SCHEMA.safeParse(payload);
-    if (!parsed.success) {
-      return;
-    }
-    const pipeline = requireOwned(registry, socket, parsed.data.sessionId);
-    if (pipeline === undefined) {
-      return;
-    }
-    try {
-      pipeline.correctTranscript(
-        parsed.data.segmentId,
-        parsed.data.text,
-        parsed.data.expectedRevision,
-      );
-    } catch (error) {
-      emitLiveError(
-        socket,
-        parsed.data.sessionId,
-        error instanceof Error
-          ? error.message
-          : 'Falha ao corrigir transcrição',
-      );
-    }
-  });
+  socket.on(
+    'CORRECT_TRANSCRIPT',
+    guard('CORRECT_TRANSCRIPT', (payload: unknown) => {
+      if (!allow('control', payload)) {
+        return;
+      }
+      const parsed = CORRECT_TRANSCRIPT_SCHEMA.safeParse(payload);
+      if (!parsed.success) {
+        return;
+      }
+      const pipeline = requireOwned(registry, socket, parsed.data.sessionId);
+      if (pipeline === undefined) {
+        return;
+      }
+      try {
+        pipeline.correctTranscript(
+          parsed.data.segmentId,
+          parsed.data.text,
+          parsed.data.expectedRevision,
+        );
+      } catch (error) {
+        emitLiveError(
+          socket,
+          parsed.data.sessionId,
+          userFacingMessage(error, 'Falha ao corrigir transcrição'),
+        );
+      }
+    }),
+  );
 
   socket.on('RETRY_VERIFICATION', (payload) => {
+    if (!allow('control', payload)) {
+      return;
+    }
     void (async () => {
       const parsed = RETRY_VERIFICATION_SCHEMA.safeParse(payload);
       if (!parsed.success) {
@@ -476,42 +614,88 @@ export function attachLiveSessionHandlers(
         emitLiveError(
           socket,
           target.sessionId,
-          error instanceof Error
-            ? error.message
-            : 'Falha ao retentar verificação',
+          userFacingMessage(error, 'Falha ao retentar verificação'),
         );
       }
     })().catch((error: unknown) => {
       emitLiveError(
         socket,
-        undefined,
-        error instanceof Error ? error.message : 'Falha ao retentar verificação.',
+        sessionIdOf(payload),
+        userFacingMessage(error, 'Falha ao processar o evento ao vivo.'),
       );
     });
   });
 
-  socket.on('EXPORT_SESSION', (payload) => {
-    const parsed = EXPORT_SESSION_SCHEMA.safeParse(payload);
-    if (!parsed.success) {
-      return;
-    }
-    const pipeline = requireOwned(registry, socket, parsed.data.sessionId);
-    if (pipeline === undefined) {
-      return;
-    }
-    pipeline.exportSnapshot();
-  });
+  socket.on(
+    'EXPORT_SESSION',
+    guard('EXPORT_SESSION', (payload: unknown) => {
+      if (!allow('control', payload)) {
+        return;
+      }
+      const parsed = EXPORT_SESSION_SCHEMA.safeParse(payload);
+      if (!parsed.success) {
+        return;
+      }
+      const pipeline = requireOwned(registry, socket, parsed.data.sessionId);
+      if (pipeline === undefined) {
+        return;
+      }
+      pipeline.exportSession();
+    }),
+  );
 
-  socket.on('DELETE_SESSION', (payload) => {
-    const parsed = DELETE_SESSION_SCHEMA.safeParse(payload);
-    if (!parsed.success) {
-      return;
-    }
-    const pipeline = requireOwned(registry, socket, parsed.data.sessionId);
-    if (pipeline === undefined) {
-      return;
-    }
-    pipeline.deleteSession('deleted');
-    registry.remove(parsed.data.sessionId);
-  });
+  socket.on(
+    'SUBMIT_HUMAN_REVIEW',
+    guard('SUBMIT_HUMAN_REVIEW', (payload: unknown) => {
+      if (!allow('control', payload)) {
+        return;
+      }
+      const parsed = SUBMIT_HUMAN_REVIEW_SCHEMA.safeParse(payload);
+      if (!parsed.success) {
+        emitLiveError(
+          socket,
+          sessionIdOf(payload),
+          'Payload SUBMIT_HUMAN_REVIEW inválido.',
+        );
+        return;
+      }
+      const pipeline = requireOwned(registry, socket, parsed.data.sessionId);
+      if (pipeline === undefined) {
+        return;
+      }
+      try {
+        pipeline.submitHumanReview({
+          verificationId: parsed.data.verificationId,
+          expectedRevision: parsed.data.expectedRevision,
+          decision: parsed.data.decision,
+          ...(parsed.data.note === undefined ? {} : { note: parsed.data.note }),
+        });
+      } catch (error) {
+        emitLiveError(
+          socket,
+          parsed.data.sessionId,
+          userFacingMessage(error, 'Falha ao registrar revisão humana'),
+        );
+      }
+    }),
+  );
+
+  socket.on(
+    'DELETE_SESSION',
+    guard('DELETE_SESSION', (payload: unknown) => {
+      if (!allow('control', payload)) {
+        return;
+      }
+      const parsed = DELETE_SESSION_SCHEMA.safeParse(payload);
+      if (!parsed.success) {
+        return;
+      }
+      const pipeline = requireOwned(registry, socket, parsed.data.sessionId);
+      if (pipeline === undefined) {
+        return;
+      }
+      pipeline.deleteSession('deleted');
+      registry.remove(parsed.data.sessionId);
+    }),
+  );
 }

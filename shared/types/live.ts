@@ -4,6 +4,31 @@ export const PROTOCOL_VERSION = 1;
 
 const ISO_DATETIME_SCHEMA = z.iso.datetime({ offset: true });
 
+/**
+ * Runtime limits for client → server payloads (LIVE-038). Socket.IO messages
+ * are untrusted input: ids, texts and arrays are bounded before reaching the
+ * pipeline. Binary audio is additionally capped by the transport
+ * (`maxHttpBufferSize`) and by `maxChunkSamples`.
+ */
+export const LIVE_PAYLOAD_LIMITS = {
+  maxIdLength: 128,
+  maxCorrectionChars: 4_000,
+  maxSpeakerMappings: 32,
+  maxParticipantNameChars: 120,
+  maxApiKeyChars: 512,
+  maxReviewNoteChars: 2_000,
+  /** 10 s of 16 kHz mono audio per chunk. */
+  maxChunkSamples: 160_000,
+  maxResumeTokenChars: 256,
+} as const;
+
+/** Opaque identifier (session, segment, verification…) sent by the client. */
+export const LIVE_ID_SCHEMA = z
+  .string()
+  .min(1)
+  .max(LIVE_PAYLOAD_LIMITS.maxIdLength)
+  .regex(/^[A-Za-z0-9._:-]+$/, 'Identificador com caracteres inválidos');
+
 // ===== Sessão =====
 export const LIVE_SESSION_STATE_SCHEMA = z.enum([
   'IDLE',
@@ -23,7 +48,7 @@ export const AUDIO_CHUNK_META_SCHEMA = z.object({
   encoding: z.literal('pcm16le'),
   sampleRate: z.literal(16000),
   channels: z.literal(1),
-  samples: z.number().int().gt(0),
+  samples: z.number().int().gt(0).lte(LIVE_PAYLOAD_LIMITS.maxChunkSamples),
   startSample: z.number().int().gte(0),
   capturedAt: ISO_DATETIME_SCHEMA,
 });
@@ -450,6 +475,198 @@ export const VERIFICATION_SCHEMA = VERIFICATION_SHAPE_SCHEMA.superRefine(
 );
 export type Verification = z.infer<typeof VERIFICATION_SCHEMA>;
 
+// ===== Revisões, invalidação e auditoria (LIVE-040) =====
+/** Reference to one revision of an entity (segment, claim, context…). */
+export const REVISION_REF_SCHEMA = z.object({
+  id: z.string(),
+  revision: z.number().int().gte(0),
+});
+export type RevisionRef = z.infer<typeof REVISION_REF_SCHEMA>;
+
+/** Why a dependent conclusion stopped being current. */
+export const INVALIDATION_CAUSE_SCHEMA = z.enum([
+  'TRANSCRIPT_CORRECTION',
+  'CONTEXT_CHANGED',
+  'SPEAKER_MAPPING_CHANGED',
+  'RETRY_REQUESTED',
+]);
+export type InvalidationCause = z.infer<typeof INVALIDATION_CAUSE_SCHEMA>;
+
+/**
+ * Classification of a text change. `TYPOGRAPHIC` (case, spacing or
+ * punctuation outside numbers) is the only kind that does not invalidate.
+ */
+export const TEXT_CHANGE_KIND_SCHEMA = z.enum([
+  'TYPOGRAPHIC',
+  'NUMBER',
+  'NEGATION',
+  'WORDING',
+]);
+export type TextChangeKind = z.infer<typeof TEXT_CHANGE_KIND_SCHEMA>;
+
+export const REVISION_DIFF_SCHEMA = z.object({
+  field: z.enum(['TRANSCRIPT', 'SPEAKER', 'CONTEXT', 'NONE']),
+  before: z.string().optional(),
+  after: z.string().optional(),
+  changeKinds: z.array(TEXT_CHANGE_KIND_SCHEMA).default([]),
+});
+export type RevisionDiff = z.infer<typeof REVISION_DIFF_SCHEMA>;
+
+/** Revisions of every input an investigation attempt depended on. */
+export const VERIFICATION_INPUTS_SCHEMA = z.object({
+  claimRef: REVISION_REF_SCHEMA,
+  segmentRefs: z.array(REVISION_REF_SCHEMA),
+  contextRefs: z.array(REVISION_REF_SCHEMA),
+  speakerId: z.string().optional(),
+  speakerMappingRevision: z.number().int().gte(0).optional(),
+  speakerName: z.string().optional(),
+});
+export type VerificationInputs = z.infer<typeof VERIFICATION_INPUTS_SCHEMA>;
+
+export const VERIFICATION_ATTEMPT_STATUS_SCHEMA = z.enum([
+  'RUNNING',
+  'COMPLETED',
+  'FAILED',
+  'DEFERRED',
+  'CANCELLED',
+  'DISCARDED_STALE',
+  'SUPERSEDED',
+]);
+export type VerificationAttemptStatus = z.infer<
+  typeof VERIFICATION_ATTEMPT_STATUS_SCHEMA
+>;
+
+/** One automated investigation attempt of one claim (immutable inputs). */
+export const VERIFICATION_ATTEMPT_RECORD_SCHEMA = z.object({
+  id: z.string(),
+  verificationId: z.string(),
+  claimId: z.string(),
+  attemptNumber: z.number().int().gte(1),
+  inputs: VERIFICATION_INPUTS_SCHEMA,
+  status: VERIFICATION_ATTEMPT_STATUS_SCHEMA,
+  /** Automated checks only; human reviews live in `HUMAN_REVIEW_RECORD`. */
+  reviewType: z.literal('AUTOMATED'),
+  startedAt: ISO_DATETIME_SCHEMA,
+  finishedAt: ISO_DATETIME_SCHEMA.optional(),
+  resultRevision: z.number().int().gte(0).optional(),
+  verdict: VERDICT_SCHEMA.optional(),
+  reason: z.string().optional(),
+});
+export type VerificationAttemptRecord = z.infer<
+  typeof VERIFICATION_ATTEMPT_RECORD_SCHEMA
+>;
+
+export const VERIFICATION_INVALIDATION_RECORD_SCHEMA = z.object({
+  verificationId: z.string(),
+  claimId: z.string(),
+  /** Verification revision after invalidation (supersedes every older one). */
+  revision: z.number().int().gte(0),
+  cause: INVALIDATION_CAUSE_SCHEMA,
+  reason: z.string(),
+  invalidatedAt: ISO_DATETIME_SCHEMA,
+  attemptId: z.string().optional(),
+  previousVerdict: VERDICT_SCHEMA.optional(),
+  diff: REVISION_DIFF_SCHEMA.optional(),
+});
+export type VerificationInvalidationRecord = z.infer<
+  typeof VERIFICATION_INVALIDATION_RECORD_SCHEMA
+>;
+
+export const HUMAN_REVIEW_DECISION_SCHEMA = z.enum([
+  'CONFIRMED',
+  'DISPUTED',
+  'NOTE',
+]);
+export type HumanReviewDecision = z.infer<typeof HUMAN_REVIEW_DECISION_SCHEMA>;
+
+export const HUMAN_REVIEW_RECORD_SCHEMA = z.object({
+  id: z.string(),
+  verificationId: z.string(),
+  verificationRevision: z.number().int().gte(0),
+  reviewType: z.literal('HUMAN'),
+  decision: HUMAN_REVIEW_DECISION_SCHEMA,
+  note: z.string().optional(),
+  reviewedAt: ISO_DATETIME_SCHEMA,
+});
+export type HumanReviewRecord = z.infer<typeof HUMAN_REVIEW_RECORD_SCHEMA>;
+
+/** Decision applied when a correction is purely typographic. */
+export const TYPOGRAPHIC_CORRECTION_RECORD_SCHEMA = z.object({
+  segmentId: z.string(),
+  fromRevision: z.number().int().gte(0),
+  toRevision: z.number().int().gte(0),
+  decision: z.literal('KEEP_RESULTS'),
+  recordedAt: ISO_DATETIME_SCHEMA,
+  diff: REVISION_DIFF_SCHEMA,
+});
+export type TypographicCorrectionRecord = z.infer<
+  typeof TYPOGRAPHIC_CORRECTION_RECORD_SCHEMA
+>;
+
+/** Published in-memory retention limits of the current session (P0). */
+export const LIVE_RETENTION_POLICY_SCHEMA = z.object({
+  storage: z.literal('MEMORY_ONLY'),
+  durableAfterRestart: z.literal(false),
+  idleTtlMs: z.number().int().gt(0),
+  maxSessionMs: z.number().int().gt(0),
+  maxAttemptsPerVerification: z.number().int().gt(0),
+  maxAuditRecords: z.number().int().gt(0),
+  audioPersisted: z.literal(false),
+  voiceRepresentationsPersisted: z.literal(false),
+  credentialsExported: z.literal(false),
+});
+export type LiveRetentionPolicy = z.infer<typeof LIVE_RETENTION_POLICY_SCHEMA>;
+
+export const SESSION_AUDIT_SCHEMA = z.object({
+  attempts: z.array(VERIFICATION_ATTEMPT_RECORD_SCHEMA),
+  invalidations: z.array(VERIFICATION_INVALIDATION_RECORD_SCHEMA),
+  humanReviews: z.array(HUMAN_REVIEW_RECORD_SCHEMA),
+  typographicCorrections: z.array(TYPOGRAPHIC_CORRECTION_RECORD_SCHEMA),
+  /** Records dropped by the retention caps (never silently). */
+  truncated: z.number().int().gte(0),
+});
+export type SessionAudit = z.infer<typeof SESSION_AUDIT_SCHEMA>;
+
+export const SEGMENT_REVISION_RECORD_SCHEMA = z.object({
+  segmentId: z.string(),
+  revision: z.number().int().gte(0),
+  text: z.string(),
+  status: TRANSCRIPT_SEGMENT_STATUS_SCHEMA,
+  speakerId: z.string().optional(),
+  recordedAt: ISO_DATETIME_SCHEMA,
+});
+export type SegmentRevisionRecord = z.infer<
+  typeof SEGMENT_REVISION_RECORD_SCHEMA
+>;
+
+/** Speech → claim → document/excerpt → conclusion link of the export. */
+export const SESSION_EXPORT_LINK_SCHEMA = z.object({
+  segmentRefs: z.array(REVISION_REF_SCHEMA),
+  originalQuote: z.string(),
+  speakerId: z.string().optional(),
+  claimRef: REVISION_REF_SCHEMA,
+  normalizedClaim: z.string(),
+  verificationId: z.string(),
+  verificationRevision: z.number().int().gte(0),
+  current: z.boolean(),
+  status: CLAIM_STATUS_SCHEMA,
+  verdict: VERDICT_SCHEMA.optional(),
+  conclusion: z.string().optional(),
+  evidence: z.array(
+    z.object({
+      evidenceId: z.string(),
+      relation: EVIDENCE_RELATION_SCHEMA,
+      excerpt: z.string(),
+      location: z.string().optional(),
+      verifiedContent: z.boolean(),
+      sourceId: z.string(),
+      sourceUrl: z.string(),
+      sourceTitle: z.string(),
+    }),
+  ),
+});
+export type SessionExportLink = z.infer<typeof SESSION_EXPORT_LINK_SCHEMA>;
+
 // ===== Envelope =====
 export const EVENT_ENVELOPE_SCHEMA = z.object({
   protocolVersion: z.number(),
@@ -467,38 +684,58 @@ const envelopeEvent = <T extends z.ZodType>(data: T) =>
 
 // ===== Cliente -> servidor =====
 export const START_LIVE_SESSION_SCHEMA = z.object({
-  sessionId: z.string(),
+  sessionId: LIVE_ID_SCHEMA,
   source: z.enum(['TAB', 'MIC']),
   language: z.literal('pt-BR'),
   consent: z.literal(true),
   apiKeys: z
     .object({
-      google: z.string().optional(),
-      tavily: z.string().optional(),
+      google: z.string().max(LIVE_PAYLOAD_LIMITS.maxApiKeyChars).optional(),
+      tavily: z.string().max(LIVE_PAYLOAD_LIMITS.maxApiKeyChars).optional(),
     })
     .optional(),
 });
 export type StartLiveSession = z.infer<typeof START_LIVE_SESSION_SCHEMA>;
 
 export const AUDIO_CHUNK_SCHEMA = AUDIO_CHUNK_META_SCHEMA.extend({
-  sessionId: z.string(),
+  sessionId: LIVE_ID_SCHEMA,
 });
 export type AudioChunk = z.infer<typeof AUDIO_CHUNK_SCHEMA>;
 
 export const LIVE_SESSION_CONTROL_SCHEMA = z.object({
-  sessionId: z.string(),
+  sessionId: LIVE_ID_SCHEMA,
 });
 export type LiveSessionControl = z.infer<typeof LIVE_SESSION_CONTROL_SCHEMA>;
 
 export const RESUME_SESSION_SCHEMA = z.object({
-  sessionId: z.string(),
+  sessionId: LIVE_ID_SCHEMA,
   cursor: z.number().int().gte(0),
+  /**
+   * Capability issued in `LIVE_SESSION_STARTED`. Required by the server to
+   * reclaim a session from another socket: knowing the sessionId is not
+   * authorization (LIVE-038).
+   */
+  resumeToken: z
+    .string()
+    .min(1)
+    .max(LIVE_PAYLOAD_LIMITS.maxResumeTokenChars)
+    .optional(),
 });
 export type ResumeSession = z.infer<typeof RESUME_SESSION_SCHEMA>;
 
 export const UPDATE_SPEAKER_MAPPING_SCHEMA = z.object({
-  sessionId: z.string(),
-  mappings: z.array(SPEAKER_MAPPING_SCHEMA),
+  sessionId: LIVE_ID_SCHEMA,
+  mappings: z
+    .array(
+      SPEAKER_MAPPING_SCHEMA.extend({
+        speakerId: LIVE_ID_SCHEMA,
+        participantName: z
+          .string()
+          .min(1)
+          .max(LIVE_PAYLOAD_LIMITS.maxParticipantNameChars),
+      }),
+    )
+    .max(LIVE_PAYLOAD_LIMITS.maxSpeakerMappings),
   expectedRevision: z.number().int().gte(0),
 });
 export type UpdateSpeakerMapping = z.infer<
@@ -506,27 +743,41 @@ export type UpdateSpeakerMapping = z.infer<
 >;
 
 export const CORRECT_TRANSCRIPT_SCHEMA = z.object({
-  sessionId: z.string(),
-  segmentId: z.string(),
+  sessionId: LIVE_ID_SCHEMA,
+  segmentId: LIVE_ID_SCHEMA,
   expectedRevision: z.number().int().gte(0),
-  text: z.string().min(1),
+  text: z.string().min(1).max(LIVE_PAYLOAD_LIMITS.maxCorrectionChars),
 });
 export type CorrectTranscript = z.infer<typeof CORRECT_TRANSCRIPT_SCHEMA>;
 
 export const RETRY_VERIFICATION_SCHEMA = z.object({
-  verificationId: z.string(),
+  verificationId: LIVE_ID_SCHEMA,
 });
 export type RetryVerification = z.infer<typeof RETRY_VERIFICATION_SCHEMA>;
 
 export const EXPORT_SESSION_SCHEMA = z.object({
-  sessionId: z.string(),
+  sessionId: LIVE_ID_SCHEMA,
 });
 export type ExportSession = z.infer<typeof EXPORT_SESSION_SCHEMA>;
 
 export const DELETE_SESSION_SCHEMA = z.object({
-  sessionId: z.string(),
+  sessionId: LIVE_ID_SCHEMA,
 });
 export type DeleteSession = z.infer<typeof DELETE_SESSION_SCHEMA>;
+
+/**
+ * Human review of the *current* verification revision (LIVE-040). Stored as a
+ * record distinct from automated checks; it never changes the verdict and is
+ * rejected when `expectedRevision` is stale.
+ */
+export const SUBMIT_HUMAN_REVIEW_SCHEMA = z.object({
+  sessionId: LIVE_ID_SCHEMA,
+  verificationId: LIVE_ID_SCHEMA,
+  expectedRevision: z.number().int().gte(0),
+  decision: HUMAN_REVIEW_DECISION_SCHEMA,
+  note: z.string().max(LIVE_PAYLOAD_LIMITS.maxReviewNoteChars).optional(),
+});
+export type SubmitHumanReview = z.infer<typeof SUBMIT_HUMAN_REVIEW_SCHEMA>;
 
 export const CLIENT_EVENT_SCHEMAS = {
   START_LIVE_SESSION: START_LIVE_SESSION_SCHEMA,
@@ -541,12 +792,18 @@ export const CLIENT_EVENT_SCHEMAS = {
   RETRY_VERIFICATION: RETRY_VERIFICATION_SCHEMA,
   EXPORT_SESSION: EXPORT_SESSION_SCHEMA,
   DELETE_SESSION: DELETE_SESSION_SCHEMA,
+  SUBMIT_HUMAN_REVIEW: SUBMIT_HUMAN_REVIEW_SCHEMA,
 } as const;
 
 // ===== Servidor -> cliente =====
 export const LIVE_SESSION_STARTED_DATA_SCHEMA = z.object({
   sessionId: z.string(),
   state: LIVE_SESSION_STATE_SCHEMA,
+  /**
+   * Per-session capability for `RESUME_SESSION` from a new socket. Sent only
+   * to the owner; never included in snapshots, exports, logs or metrics.
+   */
+  resumeToken: z.string().min(1).optional(),
 });
 export const LIVE_SESSION_STARTED_EVENT_SCHEMA = envelopeEvent(
   LIVE_SESSION_STARTED_DATA_SCHEMA,
@@ -652,6 +909,13 @@ export const VERIFICATION_INVALIDATED_DATA_SCHEMA = z.object({
   verificationId: z.string(),
   reason: z.string(),
   revision: z.number().int().gte(0),
+  // Additive audit fields (LIVE-040).
+  claimId: z.string().optional(),
+  cause: INVALIDATION_CAUSE_SCHEMA.optional(),
+  invalidatedAt: ISO_DATETIME_SCHEMA.optional(),
+  attemptId: z.string().optional(),
+  previousVerdict: VERDICT_SCHEMA.optional(),
+  diff: REVISION_DIFF_SCHEMA.optional(),
 });
 export const VERIFICATION_INVALIDATED_EVENT_SCHEMA = envelopeEvent(
   VERIFICATION_INVALIDATED_DATA_SCHEMA,
@@ -670,6 +934,11 @@ export const SESSION_SNAPSHOT_DATA_SCHEMA = z.object({
   claims: z.array(CLAIM_SCHEMA),
   verifications: z.array(VERIFICATION_SCHEMA),
   cursor: z.number().int().gte(0),
+  /**
+   * Latest invalidation per verification id (LIVE-040). Replaying a snapshot
+   * must apply these so an old verdict is never resurrected.
+   */
+  invalidations: z.array(VERIFICATION_INVALIDATION_RECORD_SCHEMA).optional(),
 });
 export const SESSION_SNAPSHOT_EVENT_SCHEMA = envelopeEvent(
   SESSION_SNAPSHOT_DATA_SCHEMA,
@@ -717,6 +986,42 @@ export type LiveSessionEndedEvent = z.infer<
   typeof LIVE_SESSION_ENDED_EVENT_SCHEMA
 >;
 
+export const SESSION_EXPORT_DATA_SCHEMA = z.object({
+  sessionId: z.string(),
+  exportedAt: ISO_DATETIME_SCHEMA,
+  state: LIVE_SESSION_STATE_SCHEMA,
+  retention: LIVE_RETENTION_POLICY_SCHEMA,
+  /** What is deliberately left out of the default export. */
+  excludes: z.array(z.enum(['AUDIO', 'CREDENTIALS', 'VOICE_EMBEDDINGS'])),
+  segments: z.array(TRANSCRIPT_SEGMENT_SCHEMA),
+  segmentHistory: z.array(SEGMENT_REVISION_RECORD_SCHEMA),
+  claims: z.array(CLAIM_SCHEMA),
+  supersededClaims: z.array(CLAIM_SCHEMA),
+  verifications: z.array(VERIFICATION_SCHEMA),
+  supersededVerifications: z.array(VERIFICATION_SHAPE_SCHEMA),
+  links: z.array(SESSION_EXPORT_LINK_SCHEMA),
+  audit: SESSION_AUDIT_SCHEMA,
+});
+export const SESSION_EXPORT_EVENT_SCHEMA = envelopeEvent(
+  SESSION_EXPORT_DATA_SCHEMA,
+);
+export type SessionExportData = z.infer<typeof SESSION_EXPORT_DATA_SCHEMA>;
+export type SessionExportEvent = z.infer<typeof SESSION_EXPORT_EVENT_SCHEMA>;
+
+export const HUMAN_REVIEW_RECORDED_DATA_SCHEMA = z.object({
+  sessionId: z.string(),
+  review: HUMAN_REVIEW_RECORD_SCHEMA,
+});
+export const HUMAN_REVIEW_RECORDED_EVENT_SCHEMA = envelopeEvent(
+  HUMAN_REVIEW_RECORDED_DATA_SCHEMA,
+);
+export type HumanReviewRecordedData = z.infer<
+  typeof HUMAN_REVIEW_RECORDED_DATA_SCHEMA
+>;
+export type HumanReviewRecordedEvent = z.infer<
+  typeof HUMAN_REVIEW_RECORDED_EVENT_SCHEMA
+>;
+
 export const AUDIO_CHUNK_ACK_DATA_SCHEMA = z.object({
   sessionId: z.string(),
   chunkSeq: z.number().int(),
@@ -744,4 +1049,6 @@ export const SERVER_EVENT_SCHEMAS = {
   LIVE_GAP: LIVE_GAP_EVENT_SCHEMA,
   LIVE_SESSION_ENDED: LIVE_SESSION_ENDED_EVENT_SCHEMA,
   AUDIO_CHUNK_ACK: AUDIO_CHUNK_ACK_EVENT_SCHEMA,
+  SESSION_EXPORT: SESSION_EXPORT_EVENT_SCHEMA,
+  HUMAN_REVIEW_RECORDED: HUMAN_REVIEW_RECORDED_EVENT_SCHEMA,
 } as const;
