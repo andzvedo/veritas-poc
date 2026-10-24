@@ -337,6 +337,28 @@ test('getSupportedAspects, getLimitations and getSpeakerLabel trim and drop blan
   assert.deepEqual(getSupportedAspects(verification), ['O pagamento ocorreu.']);
   assert.deepEqual(getLimitations(verification), ['Faltou o dado de 2023.']);
   assert.equal(getSpeakerLabel(verification), 'speaker-7');
+  assert.equal(
+    getSpeakerLabel(verification, [
+      {
+        speakerId: 'speaker-7',
+        participantName: 'Candidata A',
+        confirmed: true,
+        revision: 1,
+      },
+    ]),
+    'Candidata A',
+  );
+  assert.equal(
+    getSpeakerLabel(verification, [
+      {
+        speakerId: 'speaker-7',
+        participantName: 'Candidata A',
+        confirmed: false,
+        revision: 1,
+      },
+    ]),
+    'speaker-7',
+  );
   assert.equal(getSpeakerLabel(makeVerification({ speakerId: undefined })), null);
 });
 

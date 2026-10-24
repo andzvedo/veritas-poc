@@ -176,6 +176,26 @@ test('applySessionSnapshotVerifications upserts by revision and returns cursor',
   assert.equal(merged.items[0].conclusion, 'Snapshot mais recente');
 });
 
+test('authoritative empty snapshot removes stale cards but preserves invalidation tombstones', () => {
+  const stale = baseVerification({ status: 'COMPLETED', verdict: 'SUPPORTED' });
+  const tombstone = baseVerification({
+    id: 'ver-invalidated',
+    status: 'CANCELLED',
+    verdict: undefined,
+    revision: 3,
+  });
+  const merged = applySessionSnapshotVerifications([stale, tombstone], {
+    sessionId: 'session-a',
+    state: 'LISTENING',
+    segments: [],
+    claims: [],
+    verifications: [],
+    cursor: 44,
+  });
+
+  assert.deepEqual(merged.items.map((item) => item.id), ['ver-invalidated']);
+});
+
 test('mapFactCheckFlagsToVerdict never treats absent flags as SUPPORTED/FALSE', () => {
   assert.equal(mapFactCheckFlagsToVerdict(undefined), 'INCONCLUSIVE');
   assert.equal(mapFactCheckFlagsToVerdict([]), 'INCONCLUSIVE');

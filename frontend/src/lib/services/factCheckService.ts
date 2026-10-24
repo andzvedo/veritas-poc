@@ -8,7 +8,6 @@ import type {
   VerificationInvalidatedEvent,
   VerificationResultEvent,
   TranscriptSegment,
-  SpeakerMapping,
 } from '@veritas/shared';
 import { AudioChunker } from '../audio/audioStream';
 import { startTabAudioCapture, type TabAudioCapture } from '../audio/tabCapture';

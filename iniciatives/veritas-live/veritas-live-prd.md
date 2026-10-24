@@ -5,7 +5,7 @@
 - **Versão:** 1.2
 - **Data:** 23/10/2026
 - **Status:** Implementação parcial no código; piloto/MVP ainda não validados
-- **Repositório:** https://github.com/Fconstant/veritas-poc
+- **Repositório:** https://github.com/andzvedo/veritas-poc
 
 ---
 

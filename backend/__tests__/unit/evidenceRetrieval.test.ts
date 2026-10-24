@@ -334,7 +334,7 @@ describe('retrieveEvidence', () => {
     expect(result.sources).toHaveLength(4);
   });
 
-  it('never leaks credentials through failure reasons', async () => {
+  it('preserves total document-provider outages as operational errors without leaking credentials', async () => {
     const provider = new FakeProvider({
       hits: [hit('https://example.org/secret')],
       documents: {
@@ -345,12 +345,11 @@ describe('retrieveEvidence', () => {
       },
     });
 
-    const result = await retrieveEvidence({ claim: CLAIM, provider });
-    const serialized = JSON.stringify(result.failures);
+    const error = await captureError(retrieveEvidence({ claim: CLAIM, provider }));
 
-    expect(result.sources).toEqual([]);
-    expect(serialized).not.toContain('tvly-secret-key');
-    expect(serialized).toContain('documento indisponível ou vazio');
+    expect(error).toBeInstanceOf(ResearchError);
+    expect((error as ResearchError).kind).toBe('UNAVAILABLE');
+    expect((error as Error).message).not.toContain('tvly-secret-key');
   });
 
   it('returns an empty result when the search finds nothing', async () => {

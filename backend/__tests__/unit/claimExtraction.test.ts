@@ -154,6 +154,21 @@ describe('claimExtraction', () => {
     expect(claim.atomicClaims).toHaveLength(1);
   });
 
+  it('rejects a schema-valid quote that is not present in the transcript', async () => {
+    const llm = new FakeChatModel([
+      JSON.stringify([
+        {
+          originalQuote: 'O total foi de 15 bilhões de reais.',
+          normalizedClaim: 'O total foi de 15 bilhões de reais.',
+        },
+      ]),
+    ]);
+
+    await expect(
+      extractClaims({ text: 'Boa noite a todos.', llm, source: SOURCE }),
+    ).rejects.toBeInstanceOf(ValidationError);
+  });
+
   it('accepts an empty array as a valid extraction', async () => {
     const llm = new FakeChatModel(['[]']);
 
