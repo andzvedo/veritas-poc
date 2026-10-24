@@ -11,7 +11,7 @@
 
 Transformar o Veritas em uma plataforma capaz de:
 
-1. Capturar áudio de uma aba do navegador.
+1. Capturar o debate pelo microfone autorizado do usuário.
 2. Transcrever continuamente em português.
 3. Identificar participantes e afirmações verificáveis.
 4. Pesquisar evidências automaticamente.
@@ -48,11 +48,13 @@ Prioridades:
 
 O commit `8b01ec5d18eef0bad0644aa07888566b3f507e7a` acrescenta adaptadores intercambiáveis, controles de orçamento e um harness/corpus factual offline ao percurso existente de áudio → transcrição → claim → pesquisa → card. A suíte automatizada usa mocks em parte do fluxo e o corpus local é um ponto de partida; isso não comprova captura real, qualidade de fala/autoria, precisão factual geral, latência-alvo nem ensaio de duas horas.
 
-Esta rodada conecta a interface ao fluxo de áudio e corrige entrada de socket, autoria apresentada, sincronização de revisão, citação literal, falhas de recuperação documental e encerramento. Os checkboxes abaixo continuam sendo critérios, não uma declaração automática de aceite. O sistema não retoma sessão em socket novo: por segurança, a interface encerra a captura e orienta iniciar outra sessão quando a conexão cai.
+O follow-up atual alinha cada segmento transcrito às faixas temporais da diarização e habilita retomada autenticada na mesma instância: o token fica somente em memória no cliente, a captura pausa durante a desconexão e só é retomada após snapshot e confirmação do servidor. Os checkboxes abaixo continuam sendo critérios, não uma declaração automática de aceite.
 
 Na branch desta PR, passaram 333 testes do backend, 69 do frontend, avaliação factual offline (10/10), lint, typechecks e builds de backend/frontend. Esses resultados cobrem contratos e fixtures; não substituem captura real, provedores externos ou validação independente.
 
 Permanecem gates explícitos: qualificação de navegador/player/modelos e validação do orçamento (LIVE-000), diarização contínua avaliada (LIVE-010/034), benchmark documental independente com referências revisadas (LIVE-024/035), medição de custo/latência e ensaio prolongado (LIVE-036/041), prova reproduzível de conteúdo-fonte e revisão de segurança/privacidade (LIVE-038). Histórico persistente e mobile seguem P1 (LIVE-029/030/031).
+
+O follow-up em andamento preserva os timestamps das faixas de diarização e associa a autoria por segmento transcrito, deixando a fala desconhecida quando há sobreposição ou cobertura fraca. O adaptador envia o ID da sessão para permitir continuidade no serviço configurado, mas isso ainda requer que o serviço mantenha clusters estáveis e seja validado com áudio real. A captura documentada no PRD foi alinhada ao microfone (`getUserMedia`), que é o caminho implementado atualmente.
 
 ### Definition of Done geral
 
@@ -126,30 +128,30 @@ Demonstrar captura da transmissão escolhida e transcrição local com portuguê
 - [ ] Entradas e saídas são validadas em runtime; contratos do modo Texto possuem migração explícita.
 
 
-## LIVE-002 — Captura de áudio da aba
+## LIVE-002 — Captura de áudio pelo microfone
 
 > **Atualização 2026-10-23 (decisão do usuário):** a captura passou a ser pelo **microfone** (`getUserMedia`, `frontend/src/lib/audio/micCapture.ts`, `source: 'MIC'`), porque o compartilhamento de aba não funcionou no piloto. O caminho `getDisplayMedia`/`tabCapture.ts` foi removido.
 
-**Implementar**
+**Implementação atual**
 
-`frontend/src/lib/audio/tabCapture.ts`
-
-Utilizar `getDisplayMedia()` para solicitar compartilhamento de aba e áudio. A implementação deve lidar com a trilha de vídeo exigida pela API sem transmiti-la ao backend.
+`frontend/src/lib/audio/micCapture.ts`, usando `getUserMedia()` após interação do usuário. O piloto capta pelo microfone o áudio reproduzido no ambiente; compartilhamento direto da aba foi removido porque não funcionou no piloto.
 
 **Aceite**
 
 - [ ] Solicita permissão após clique do usuário.
-- [ ] Permite selecionar uma aba.
+- [ ] Permite selecionar um dispositivo de entrada.
 - [ ] Confirma que existe áudio disponível.
-- [ ] Detecta encerramento do compartilhamento.
+- [ ] Detecta remoção do dispositivo e encerramento da trilha.
 - [ ] Libera as trilhas capturadas.
 - [ ] Explica erros de permissão e incompatibilidade.
 
 **Complementos obrigatórios desta revisão**
 
-- [ ] Testa o player e a combinação navegador/SO qualificados, além de permissões negadas e stream sem trilha de áudio.
-- [ ] Mantém a trilha de vídeo necessária à captura sem enviar seus dados; valida que sua liberação não interrompe áudio prematuramente.
+- [ ] Testa microfone/posicionamento, navegador/SO qualificados, ruído, eco, permissões negadas e stream sem trilha de áudio.
+- [ ] Não envia vídeo nem dados da aba; valida processamento e liberação da trilha de áudio.
 - [ ] Reconexão que exige nova autorização solicita clique; nunca promete recaptura automática fora das permissões do navegador.
+
+**Limite conhecido:** o áudio de TV ou de outra saída reproduzida no próprio computador não é capturado diretamente pelo microfone sem uma configuração física/acústica adequada. Esse caminho permanece sujeito ao LIVE-000 e pode ser declarado impedido no piloto.
 
 
 ## LIVE-003 — Processamento e transmissão de áudio
@@ -787,7 +789,7 @@ Integrar o protótipo de referência ao Design System existente, aplicando as re
 - [ ] Protótipo é referência visual, não comprovação funcional nem aprovação editorial dos rótulos.
 - [ ] Usa os componentes iniciais de LIVE-007; não exige reescrever a experiência inteira antes da fatia integrada.
 - [ ] Microfone e captura mobile ficam fora do piloto; não mostrar opção funcional sem suporte implementado e qualificado.
-  - **Atualização 2026-10-23:** substituído por decisão do usuário — a entrada usa o microfone (seletor de dispositivo + consentimento); captura de aba removida. Mobile segue fora do piloto.
+  - **Atualização 2026-10-23:** a entrada usa o microfone (seletor de dispositivo + consentimento); captura de aba removida. Desktop continua P0; mobile segue fora do piloto.
 
 
 ## LIVE-026 — Painel de transcrição

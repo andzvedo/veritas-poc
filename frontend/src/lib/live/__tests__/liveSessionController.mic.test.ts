@@ -3,7 +3,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import type { AudioChunker } from '@/lib/audio/audioStream';
-import { startMicCapture, type MediaDevicesLike } from '@/lib/audio/micCapture';
+import {
+  startMicCapture,
+  type AudioCapture,
+  type MediaDevicesLike,
+} from '@/lib/audio/micCapture';
 import {
   LiveSessionController,
   LiveSessionStartError,
@@ -37,8 +41,15 @@ type ServerReply =
 function installServiceStubs(reply: ServerReply = { kind: 'started' }) {
   const calls: Array<[string, unknown]> = [];
   const ackListeners: AudioChunkAckListener[] = [];
+  const connectionListeners: Array<(connected: boolean) => void> = [];
   const service = factCheckService as unknown as Record<string, unknown>;
   service.ensureConnected = async () => {};
+  service.onConnectionState = (listener: (connected: boolean) => void) => {
+    connectionListeners.push(listener);
+    return () => {
+      connectionListeners.splice(connectionListeners.indexOf(listener), 1);
+    };
+  };
   service.onAudioChunkAck = (listener: AudioChunkAckListener) => {
     ackListeners.push(listener);
     return () => {
@@ -68,13 +79,15 @@ function installServiceStubs(reply: ServerReply = { kind: 'started' }) {
       });
     };
   }
-  return { calls, ackListeners };
+  return { calls, ackListeners, connectionListeners };
 }
 
 function fakeChunker() {
   const state = {
     started: 0,
     stopped: 0,
+    paused: 0,
+    resumed: 0,
     acked: [] as number[],
     failed: [] as number[],
     dropped: [] as Array<[number, string]>,
@@ -87,8 +100,12 @@ function fakeChunker() {
     stop: async () => {
       state.stopped += 1;
     },
-    pause: () => {},
-    resume: async () => {},
+    pause: () => {
+      state.paused += 1;
+    },
+    resume: async () => {
+      state.resumed += 1;
+    },
     ack: (seq: number) => {
       state.acked.push(seq);
       return true;
@@ -124,7 +141,10 @@ test('controller: starts the session with source MIC from the microphone', async
   await controller.start({
     createSessionId: () => 'session-mic',
     startCapture: () =>
-      startMicCapture({ isSecureContext: true, mediaDevices: micDevices(track) }),
+      startMicCapture({
+        isSecureContext: true,
+        mediaDevices: micDevices(track),
+      }),
     createChunker: () => chunker,
   });
 
@@ -134,6 +154,39 @@ test('controller: starts the session with source MIC from the microphone', async
   assert.equal(state.started, 1);
   assert.equal(useFactCheckStore.getState().captureFeedback, 'capturing');
   await controller.stop();
+});
+
+test('controller: pauses on transport loss and resumes only after session recovery', async () => {
+  const { calls, connectionListeners } = installServiceStubs();
+  const track = new FakeTrack();
+  const { chunker, state } = fakeChunker();
+  const controller = new LiveSessionController();
+  await controller.start({
+    startCapture: async () =>
+      ({
+        stream: { getTracks: () => [track] } as unknown as MediaStream,
+        stop: () => track.stop(),
+        onEnded: () => () => {},
+        onError: () => () => {},
+      }) as unknown as AudioCapture,
+    createChunker: () => chunker,
+    createSessionId: () => 'session-reconnect',
+  });
+
+  for (const listener of connectionListeners) listener(false);
+  assert.equal(controller.getPhase(), 'reconnecting');
+  assert.equal(state.paused, 1);
+  assert.equal(useFactCheckStore.getState().liveSessionState, 'RECONNECTING');
+
+  useFactCheckStore.getState().setLiveSessionState('PAUSED');
+  assert.ok(calls.some(([name]) => name === 'resumeLiveSession'));
+  useFactCheckStore.getState().setLiveSessionState('LISTENING');
+  await new Promise<void>((resolve) => queueMicrotask(resolve));
+
+  assert.equal(controller.getPhase(), 'running');
+  assert.equal(state.resumed, 1);
+  assert.equal(useFactCheckStore.getState().captureFeedback, 'capturing');
+  await controller.stop({ cancel: true });
 });
 
 test('controller: unplugged mic shows localized error and ends the session', async () => {
@@ -184,8 +237,14 @@ test('controller: permission denied surfaces permission_error, no session', asyn
     }),
   );
 
-  assert.equal(useFactCheckStore.getState().captureFeedback, 'permission_error');
-  assert.equal(calls.some(([name]) => name === 'startLiveSession'), false);
+  assert.equal(
+    useFactCheckStore.getState().captureFeedback,
+    'permission_error',
+  );
+  assert.equal(
+    calls.some(([name]) => name === 'startLiveSession'),
+    false,
+  );
   assert.equal(controller.getPhase(), 'error');
 });
 

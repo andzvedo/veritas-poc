@@ -88,6 +88,7 @@ export type LiveSessionControllerPhase =
   | 'idle'
   | 'starting'
   | 'running'
+  | 'reconnecting'
   | 'paused'
   | 'stopping'
   | 'stopped'
@@ -110,6 +111,7 @@ export class LiveSessionController {
   private unbindCaptureEnded: (() => void) | null = null;
   private unbindCaptureError: (() => void) | null = null;
   private unsubscribeServerState: (() => void) | null = null;
+  private unsubscribeConnection: (() => void) | null = null;
   private lastCaptureError: MicCaptureError | null = null;
 
   getPhase(): LiveSessionControllerPhase {
@@ -121,7 +123,12 @@ export class LiveSessionController {
   }
 
   async start(options: LiveSessionStartOptions = {}): Promise<string> {
-    if (this.phase === 'starting' || this.phase === 'running' || this.phase === 'paused') {
+    if (
+      this.phase === 'starting' ||
+      this.phase === 'running' ||
+      this.phase === 'reconnecting' ||
+      this.phase === 'paused'
+    ) {
       throw new Error('Uma sessão Live já está em andamento.');
     }
 
@@ -201,7 +208,10 @@ export class LiveSessionController {
         // Timeout / unexpected end: surface it as a coded session error.
         current.setLiveSessionState('ERROR', {
           reason: error instanceof Error ? error.message : String(error),
-          code: error instanceof LiveSessionStartError ? error.code : 'START_FAILED',
+          code:
+            error instanceof LiveSessionStartError
+              ? error.code
+              : 'START_FAILED',
         });
       }
       current.setCaptureFeedback('ended');
@@ -248,13 +258,42 @@ export class LiveSessionController {
     }
 
     store.setCaptureFeedback('capturing');
+    this.phase = 'running';
+    this.unsubscribeConnection = factCheckService.onConnectionState(
+      (connected) => {
+        if (connected || this.phase !== 'running') return;
+        this.phase = 'reconnecting';
+        this.chunker?.pause();
+        const current = useFactCheckStore.getState();
+        current.setCaptureFeedback('capturing');
+        current.setLiveSessionState('RECONNECTING');
+      },
+    );
     this.unsubscribeServerState = useFactCheckStore.subscribe((next, prev) => {
-      if (next.liveSessionState === prev.liveSessionState) return;
-      if (next.liveSessionState === 'ERROR' || next.liveSessionState === 'ENDED') {
+      if (next.liveSessionState !== prev.liveSessionState) {
+        if (
+          this.phase === 'reconnecting' &&
+          prev.liveSessionState === 'RECONNECTING' &&
+          next.liveSessionState === 'PAUSED' &&
+          this.sessionId
+        ) {
+          // RESUME_SESSION restores a consistent snapshot in PAUSED first.
+          // Ask the server to listen before the audio worklet resumes sending.
+          factCheckService.resumeLiveSession({ sessionId: this.sessionId });
+        } else if (
+          this.phase === 'reconnecting' &&
+          next.liveSessionState === 'LISTENING'
+        ) {
+          void this.finishReconnect();
+        }
+      }
+      if (
+        next.liveSessionState === 'ERROR' ||
+        next.liveSessionState === 'ENDED'
+      ) {
         void this.handleServerTerminal(next.liveSessionState);
       }
     });
-    this.phase = 'running';
     return sessionId;
   }
 
@@ -313,11 +352,41 @@ export class LiveSessionController {
    * of streaming chunks that will only be rejected (and become gaps).
    */
   private async handleServerTerminal(state: 'ERROR' | 'ENDED'): Promise<void> {
-    if (this.phase !== 'running' && this.phase !== 'paused') return;
+    if (
+      this.phase !== 'running' &&
+      this.phase !== 'reconnecting' &&
+      this.phase !== 'paused'
+    )
+      return;
     this.phase = state === 'ERROR' ? 'error' : 'stopped';
     this.sessionId = null;
     await this.teardownCapture({ flush: false });
     useFactCheckStore.getState().setCaptureFeedback('ended');
+  }
+
+  private async finishReconnect(): Promise<void> {
+    if (this.phase !== 'reconnecting' || !this.chunker) return;
+    try {
+      await this.chunker.resume();
+      this.phase = 'running';
+      const store = useFactCheckStore.getState();
+      store.setCaptureFeedback('capturing');
+    } catch (error) {
+      this.phase = 'error';
+      this.sessionId = null;
+      await this.teardownCapture({ flush: false });
+      const store = useFactCheckStore.getState();
+      store.setCaptureFeedback(
+        'connection_error',
+        error instanceof Error
+          ? error.message
+          : 'Não foi possível retomar a captura após a reconexão.',
+      );
+      store.setLiveSessionState('ERROR', {
+        reason: error instanceof Error ? error.message : String(error),
+        code: 'START_FAILED',
+      });
+    }
   }
 
   async pause(): Promise<void> {
@@ -367,8 +436,7 @@ export class LiveSessionController {
     const sessionId = this.sessionId;
     if (!sessionId) return;
 
-    const capturedAt =
-      this.chunker?.capturedAt ?? new Date().toISOString();
+    const capturedAt = this.chunker?.capturedAt ?? new Date().toISOString();
 
     try {
       factCheckService.sendAudioChunk(
@@ -386,10 +454,12 @@ export class LiveSessionController {
       );
     } catch (error) {
       this.chunker?.fail(meta.chunkSeq);
-      useFactCheckStore.getState().setCaptureFeedback(
-        'connection_error',
-        error instanceof Error ? error.message : 'Falha ao enviar áudio.',
-      );
+      useFactCheckStore
+        .getState()
+        .setCaptureFeedback(
+          'connection_error',
+          error instanceof Error ? error.message : 'Falha ao enviar áudio.',
+        );
     }
   }
 
@@ -418,12 +488,18 @@ export class LiveSessionController {
       // closed (the `ended` tone hides errors); the user restarts manually.
       useFactCheckStore
         .getState()
-        .setCaptureFeedback(captureFeedbackFromErrorCode(reason.code), reason.message);
+        .setCaptureFeedback(
+          captureFeedbackFromErrorCode(reason.code),
+          reason.message,
+        );
     }
   }
 
   private handleCaptureStartError(error: unknown): void {
-    if (error instanceof MicCaptureError || error instanceof AudioChunkerError) {
+    if (
+      error instanceof MicCaptureError ||
+      error instanceof AudioChunkerError
+    ) {
       this.failLocal(captureFeedbackFromErrorCode(error.code), error.message);
       return;
     }
@@ -445,6 +521,8 @@ export class LiveSessionController {
   private async teardownCapture(options: { flush: boolean }): Promise<void> {
     this.unsubscribeServerState?.();
     this.unsubscribeServerState = null;
+    this.unsubscribeConnection?.();
+    this.unsubscribeConnection = null;
     this.unbindCaptureEnded?.();
     this.unbindCaptureEnded = null;
     this.unbindCaptureError?.();

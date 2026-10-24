@@ -8,6 +8,7 @@ import type {
   CorrectTranscript,
   EventEnvelope,
   LiveSessionControl,
+  ResumeSession,
   SessionSnapshotEvent,
   SpeakerMappingUpdatedEvent,
   StartLiveSession,
@@ -31,7 +32,9 @@ import {
 } from '../types/api';
 import { factCheckStore, useFactCheckStore } from '../store/factCheckStore';
 
-type RequestOptions = Partial<Omit<FactCheckRequest, 'fingerprint' | 'apiKeys'>> & {
+type RequestOptions = Partial<
+  Omit<FactCheckRequest, 'fingerprint' | 'apiKeys'>
+> & {
   apiKeys?: { google?: string; tavily?: string };
 };
 
@@ -45,8 +48,12 @@ export type AudioChunkAckListener = (
 const pendingClaimId = (claimId: string) => `claim-pending-${claimId}`;
 
 export class FactCheckService {
-  private socket: Socket<ServerToClientEvents, ClientToServerEvents> | null = null;
+  private socket: Socket<ServerToClientEvents, ClientToServerEvents> | null =
+    null;
   private audioChunkAckListeners = new Set<AudioChunkAckListener>();
+  private connectionListeners = new Set<(connected: boolean) => void>();
+  /** Session capability stays in memory; it is never persisted in browser storage. */
+  private resumeCapability: { sessionId: string; token: string } | null = null;
 
   constructor(private backendUrl: string = API_CONFIG.BACKEND_URL) {}
 
@@ -147,6 +154,9 @@ export class FactCheckService {
 
     socket.on('LIVE_SESSION_STARTED', (event) => {
       if (!this.acceptEnvelope(event.envelope)) return;
+      this.resumeCapability = event.data.resumeToken
+        ? { sessionId: event.data.sessionId, token: event.data.resumeToken }
+        : null;
       const store = useFactCheckStore.getState();
       store.update({
         sessionId: event.data.sessionId,
@@ -165,6 +175,11 @@ export class FactCheckService {
         // alive on the server, so it must not tear down the live UI.
         store.update({ message: event.data.reason });
         return;
+      }
+      if (event.data.state === 'ERROR' || event.data.state === 'ENDED') {
+        if (this.resumeCapability?.sessionId === event.data.sessionId) {
+          this.resumeCapability = null;
+        }
       }
       // ENDING = draining research — not the same as captura encerrada.
       store.setLiveSessionState(event.data.state, {
@@ -195,18 +210,21 @@ export class FactCheckService {
       });
     });
 
-    socket.on('SPEAKER_MAPPING_UPDATED', (event: SpeakerMappingUpdatedEvent) => {
-      if (!this.acceptEnvelope(event.envelope)) return;
-      if (
-        useFactCheckStore.getState().sessionId !== null &&
-        event.data.sessionId !== useFactCheckStore.getState().sessionId
-      ) {
-        return;
-      }
-      useFactCheckStore
-        .getState()
-        .setSpeakerMappings(event.data.mappings, event.data.revision);
-    });
+    socket.on(
+      'SPEAKER_MAPPING_UPDATED',
+      (event: SpeakerMappingUpdatedEvent) => {
+        if (!this.acceptEnvelope(event.envelope)) return;
+        if (
+          useFactCheckStore.getState().sessionId !== null &&
+          event.data.sessionId !== useFactCheckStore.getState().sessionId
+        ) {
+          return;
+        }
+        useFactCheckStore
+          .getState()
+          .setSpeakerMappings(event.data.mappings, event.data.revision);
+      },
+    );
 
     socket.on('LIVE_GAP', (event) => {
       if (!this.acceptEnvelope(event.envelope)) return;
@@ -242,10 +260,13 @@ export class FactCheckService {
       }
     });
 
-    socket.on('VERIFICATION_INVALIDATED', (event: VerificationInvalidatedEvent) => {
-      if (!this.acceptEnvelope(event.envelope)) return;
-      useFactCheckStore.getState().invalidateVerification(event.data);
-    });
+    socket.on(
+      'VERIFICATION_INVALIDATED',
+      (event: VerificationInvalidatedEvent) => {
+        if (!this.acceptEnvelope(event.envelope)) return;
+        useFactCheckStore.getState().invalidateVerification(event.data);
+      },
+    );
 
     socket.on('SESSION_SNAPSHOT', (event: SessionSnapshotEvent) => {
       if (!this.acceptEnvelope(event.envelope)) return;
@@ -272,11 +293,10 @@ export class FactCheckService {
         normalizedClaim: claim.normalizedClaim,
         timestampMs: claim.timestampMs,
         transcriptConfirmed: true,
-        atomicClaim:
-          claim.atomicClaims[0] ?? {
-            id: `${claim.id}-atomic`,
-            proposition: claim.normalizedClaim,
-          },
+        atomicClaim: claim.atomicClaims[0] ?? {
+          id: `${claim.id}-atomic`,
+          proposition: claim.normalizedClaim,
+        },
         status,
         mechanisms: [],
         supportedAspects: [],
@@ -320,6 +340,9 @@ export class FactCheckService {
 
     socket.on('LIVE_SESSION_ENDED', (event) => {
       if (!this.acceptEnvelope(event.envelope)) return;
+      if (this.resumeCapability?.sessionId === event.data.sessionId) {
+        this.resumeCapability = null;
+      }
       const store = useFactCheckStore.getState();
       store.update({
         sessionId: event.data.sessionId,
@@ -343,10 +366,17 @@ export class FactCheckService {
     }
   }
 
+  public onConnectionState(listener: (connected: boolean) => void): () => void {
+    this.connectionListeners.add(listener);
+    if (this.socket?.connected) listener(true);
+    return () => this.connectionListeners.delete(listener);
+  }
+
   public startLiveSession(payload: StartLiveSession): void {
     if (!this.socket?.connected) {
       throw new Error('Conexão com o backend não está disponível.');
     }
+    this.resumeCapability = null;
     this.socket.emit('START_LIVE_SESSION', payload);
   }
 
@@ -363,6 +393,21 @@ export class FactCheckService {
 
   public resumeLiveSession(payload: LiveSessionControl): void {
     this.socket?.emit('RESUME_LIVE_SESSION', payload);
+  }
+
+  public resumeSession(payload: Omit<ResumeSession, 'resumeToken'>): void {
+    const capability = this.resumeCapability;
+    if (
+      !this.socket?.connected ||
+      capability === null ||
+      capability.sessionId !== payload.sessionId
+    ) {
+      return;
+    }
+    this.socket.emit('RESUME_SESSION', {
+      ...payload,
+      resumeToken: capability.token,
+    });
   }
 
   public endLiveSession(payload: LiveSessionControl): void {
@@ -404,12 +449,16 @@ export class FactCheckService {
         console.log('🌐 URL:', this.backendUrl);
 
         const state = useFactCheckStore.getState();
-        if (state.sessionId) {
-          this.socket?.emit('RESUME_SESSION', {
+        if (
+          state.sessionId &&
+          this.resumeCapability?.sessionId === state.sessionId
+        ) {
+          this.resumeSession({
             sessionId: state.sessionId,
             cursor: state.eventCursor,
           });
         }
+        for (const listener of this.connectionListeners) listener(true);
         resolve();
       });
 
@@ -432,11 +481,14 @@ export class FactCheckService {
 
       this.socket.on('disconnect', (reason) => {
         console.log('Desconectado do backend:', reason);
+        for (const listener of this.connectionListeners) listener(false);
       });
     });
   }
 
-  public onStateChange(listener: (state: VerificationState) => void): () => void {
+  public onStateChange(
+    listener: (state: VerificationState) => void,
+  ): () => void {
     listener(factCheckStore.getState());
     return factCheckStore.subscribe((state) => {
       listener(state);
@@ -457,7 +509,9 @@ export class FactCheckService {
       console.log('✅ Health check OK:', healthData);
 
       if (!healthData.status) {
-        console.warn('⚠️ API pode ter mudado: campo "status" não encontrado na resposta');
+        console.warn(
+          '⚠️ API pode ter mudado: campo "status" não encontrado na resposta',
+        );
       }
 
       await this.connect();
